@@ -106,6 +106,7 @@
                     <option value="beginner">🟢 初階</option>
                     <option value="advanced">🔴 進階</option>
                 </select>
+                <button onclick="toggleVoice()" id="voice_toggle" style="background:#7952B3;">🔊 語音：開</button>
                 <button onclick="startCircuit()">開始巡迴訓練</button>
             </div>
 
@@ -215,6 +216,53 @@
         let isReplaying = false;
         let mediaStream = null;
         let isSendingFrame = false;
+        let voiceEnabled = true;
+        let lastSpokenText = '';
+        let lastSpeakTime = 0;
+        let speechUnlocked = false;
+
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('voice_toggle');
+            btn.textContent = voiceEnabled ? '🔊 語音：開' : '🔇 語音：關';
+        }
+
+        function unlockSpeech() {
+            // 某些瀏覽器需要使用者互動後才允許語音播放
+            if (!('speechSynthesis' in window)) return;
+
+            speechUnlocked = true;
+            const test = new SpeechSynthesisUtterance('');
+            window.speechSynthesis.speak(test);
+        }
+
+        function speakText(text, force = false) {
+            if (!voiceEnabled) return;
+            if (!speechUnlocked) return;
+            if (!text) return;
+            if (!('speechSynthesis' in window)) return;
+
+            const now = Date.now();
+
+            // 避免同一句一直重複唸
+            if (!force && text === lastSpokenText) return;
+
+            // 避免太頻繁說話
+            if (!force && now - lastSpeakTime < 3000) return;
+
+            lastSpokenText = text;
+            lastSpeakTime = now;
+
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-TW';
+            utterance.rate = 1.05;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            window.speechSynthesis.speak(utterance);
+        }
 
         const video = document.getElementById('camera_feed');
         const canvas = document.getElementById('capture_canvas');
@@ -313,6 +361,8 @@
         }
 
         function confirmWeightAndStart() {
+            unlockSpeech();
+
             const inputWeight = document.getElementById('user_weight_input').value;
             if (!inputWeight || inputWeight <= 0) {
                 alert("請輸入有效的體重！");
@@ -339,6 +389,7 @@
             const ex = exercises[currentIndex];
             document.getElementById('exercise_title').textContent = ex.name;
             document.getElementById('hint').textContent = "正在播放教學，請準備...";
+            speakText(`下一項運動，${ex.name}，請先觀看教學。`, true);
 
             stopFrameLoop();
 
@@ -381,6 +432,7 @@
 
             document.getElementById('yt_player_container').style.display = 'none';
             document.getElementById('skip_overlay').style.display = 'none';
+            speakText('開始偵測，請進入鏡頭範圍。', true);
 
             video.style.opacity = '1';
             video.style.position = 'relative';
@@ -449,6 +501,7 @@
                 if (data.counter >= data.target && data.is_started && !isTransitioning) {
                     isTransitioning = true;
                     document.getElementById('count').style.color = "#4CAF50";
+                    speakText('完成這一項，準備進入下一項運動。', true);
                     setTimeout(nextExercise, 2000);
                 } else if (!isTransitioning) {
                     document.getElementById('count').style.color = "white";
@@ -476,8 +529,10 @@
                 document.getElementById('progress_label').textContent = "完成進度 (次數)";
             }
 
-            document.getElementById('total_calories').textContent = Number(data.total_calories || 0).toFixed(2);
-            document.getElementById('hint').textContent = data.hint || '';
+                document.getElementById('total_calories').textContent = Number(data.total_calories || 0).toFixed(2);
+                const hintText = data.hint || '';
+                document.getElementById('hint').textContent = hintText;
+                speakText(hintText);
         }
 
         function nextExercise() {
