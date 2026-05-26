@@ -114,7 +114,7 @@
                 <span id="exercise_title">等待開始...</span>
                 <div>
                     <button onclick="replayVideo()" style="background: #2196F3; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">重看教學 (Replay)</button>
-                    <button onclick="nextExercise()" style="background: #FF5722; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">跳過 (Skip)</button>
+                    <button onclick="nextExercise(true)" style="background: #FF5722; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">跳過 (Skip)</button>
                     <button onclick="abortCircuit()" style="background: #E91E63; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">放棄 (Quit)</button>
                 </div>
             </div>
@@ -216,6 +216,8 @@
         let isReplaying = false;
         let mediaStream = null;
         let isSendingFrame = false;
+        let skippedExercises = 0;
+        let wasAborted = false;
         let voiceEnabled = true;
         let lastSpokenText = '';
         let lastSpeakTime = 0;
@@ -458,6 +460,8 @@
             document.getElementById('circuit_controls').style.display = 'flex';
 
             isCircuitRunning = true;
+            skippedExercises = 0;
+            wasAborted = false;
             hiitFetch('/reset_circuit', { method: 'POST' }).finally(runExerciseStep);
         }
 
@@ -583,7 +587,7 @@
                     isTransitioning = true;
                     document.getElementById('count').style.color = "#4CAF50";
                     speakText('完成這一項，準備進入下一項運動。', true);
-                    setTimeout(nextExercise, 2000);
+                    setTimeout(() => nextExercise(false), 2000);
                 } else if (!isTransitioning) {
                     document.getElementById('count').style.color = "white";
                 }
@@ -619,12 +623,16 @@
                 speakText(shortSpeechText);
             }
 
-        function nextExercise() {
+        function nextExercise(isManualSkip = false) {
             if (!isCircuitRunning) return;
 
             isTransitioning = true;
             stopFrameLoop();
             isReplaying = false;
+
+            if (isManualSkip) {
+                skippedExercises++;
+            }
 
             hiitFetch('/stop_exercise', { method: 'POST' }).then(() => {
                 currentIndex++;
@@ -635,6 +643,7 @@
         function abortCircuit() {
             if (confirm("真的要放棄訓練嗎？\n(點擊確認將提早結束並結算目前成績)")) {
                 isCircuitRunning = false;
+                wasAborted = true;
                 stopFrameLoop();
                 isTransitioning = false;
 
@@ -664,7 +673,18 @@
                 document.getElementById('modal_overlay').style.display = 'block';
                 document.getElementById('ai_modal').style.display = 'flex';
 
-                hiitFetch('/get_ai_feedback', { method: 'POST' })
+                const completedExercises = Math.max(0, Math.min(exercises.length, currentIndex - skippedExercises));
+
+                hiitFetch('/get_ai_feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        completed_exercises: completedExercises,
+                        total_exercises: exercises.length,
+                        skipped_exercises: skippedExercises,
+                        was_aborted: wasAborted
+                    })
+                })
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('ai_feedback_text').innerHTML = (data.feedback || '無法取得 AI 講評').replace(/\n/g, "<br>");

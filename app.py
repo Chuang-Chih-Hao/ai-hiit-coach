@@ -690,6 +690,8 @@ def reset_circuit_api():
 
 @app.route('/get_ai_feedback', methods=['POST'])
 def get_ai_feedback():
+    data = request.get_json(silent=True) or {}
+
     with state_lock:
         state = get_user_state()
         start_time = state.get('start_time')
@@ -705,18 +707,69 @@ def get_ai_feedback():
     mins, secs = int(duration // 60), int(duration % 60)
     level_text = "進階" if level == "advanced" else "初階"
 
-    prompt = f"""你現在是專業居家徒手 HIIT 健身教練。學員完成了 12 項巡迴訓練。
-總計時間：{mins}分{secs}秒。總消耗：{total_calories:.2f}大卡。
-訓練強度：{level_text}。
-請用繁體中文，簡潔鼓勵學員，針對徒手訓練給予恢復、補水與下次訓練建議。絕對禁止提到啞鈴或任何負重器材。"""
+    completed_exercises = int(data.get("completed_exercises", 0))
+    total_exercises = int(data.get("total_exercises", 12))
+    skipped_exercises = int(data.get("skipped_exercises", 0))
+    was_aborted = bool(data.get("was_aborted", False))
+
+    completion_rate = 0.0
+    if total_exercises > 0:
+        completion_rate = completed_exercises / total_exercises
+
+    if completion_rate >= 0.9 and not was_aborted:
+        performance_label = "完成度很高"
+        coach_attitude = "可以肯定表現，但不要過度浮誇。"
+    elif completion_rate >= 0.5:
+        performance_label = "完成一半以上"
+        coach_attitude = "可以肯定努力，但也要指出還有很多進步空間。"
+    elif duration < 180 or completion_rate < 0.35 or was_aborted:
+        performance_label = "太快放棄或完成度偏低"
+        coach_attitude = "不要說得太好聽，可以稍微吐槽，例如「今天有點敷衍」、「這樣還不算真正練到」，但語氣不要太兇，不要人身攻擊。"
+    else:
+        performance_label = "完成度普通"
+        coach_attitude = "語氣中性偏嚴格，指出問題並給下一次目標。"
+
+    prompt = f"""你現在是專業但嘴巴有點直接的居家徒手 HIIT 教練。請根據學員這次訓練狀況給最後評論。
+
+訓練資料：
+總時間：{mins}分{secs}秒
+總消耗：{total_calories:.2f}大卡
+訓練強度：{level_text}
+完成項目：{completed_exercises}/{total_exercises}
+跳過項目：{skipped_exercises}
+是否中途放棄：{"是" if was_aborted else "否"}
+完成度判定：{performance_label}
+
+評論規則：
+1. 用繁體中文。
+2. 不要條列、不要標題、不要 markdown、不要像報告格式。
+3. 請寫成自然的一小段話，像教練現場講評，約 80 到 140 字。
+4. 根據完成度真實評判，不要無腦鼓勵。
+5. 如果太快放棄、完成很少、熱量很低，可以直接說「太混了」、「今天有點敷衍」、「這樣還不算真正練到」這類話。
+6. 如果完成度高，可以肯定表現，但還是給一個下次改進方向。
+7. 絕對禁止提到啞鈴、器材、重訓或任何負重器材。
+8. {coach_attitude}
+"""
 
     if client is None:
-        fallback = (
-            f"已完成本次徒手 HIIT 巡迴。總時間約 {mins} 分 {secs} 秒，"
-            f"累計消耗 {total_calories:.2f} kcal。\n\n"
-            "提醒：Render 尚未設定 GROQ_API_KEY，所以目前使用本機備用講評。"
-            "請補充水分、做 5 到 10 分鐘伸展，下一次可優先改善提示中最常出現的動作問題。"
-        )
+        if completion_rate < 0.35 or was_aborted or duration < 180:
+            fallback = (
+                f"今天這輪完成 {completed_exercises}/{total_exercises} 項，時間約 {mins} 分 {secs} 秒，"
+                f"消耗 {total_calories:.2f} kcal。老實說有點太混了，身體才剛開始熱起來就收工，"
+                "下次至少撐過一半再說累，先把節奏穩住。"
+            )
+        elif completion_rate >= 0.9:
+            fallback = (
+                f"這次完成 {completed_exercises}/{total_exercises} 項，時間約 {mins} 分 {secs} 秒，"
+                f"消耗 {total_calories:.2f} kcal。整體完成度不錯，節奏也算穩，"
+                "下次可以把動作幅度做完整一點，不要只追速度。"
+            )
+        else:
+            fallback = (
+                f"這次完成 {completed_exercises}/{total_exercises} 項，時間約 {mins} 分 {secs} 秒，"
+                f"消耗 {total_calories:.2f} kcal。表現算有做，但還不到紮實，"
+                "下次少跳過幾項，把每個動作做滿會更有效。"
+            )
         return jsonify({"feedback": fallback})
 
     try:
@@ -724,10 +777,12 @@ def get_ai_feedback():
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.1-8b-instant",
         )
-        feedback = chat.choices[0].message.content
+        feedback = chat.choices[0].message.content.strip()
+
         with state_lock:
             state = get_user_state()
             state['start_time'] = None
+
         return jsonify({"feedback": feedback})
     except Exception as e:
         return jsonify({"feedback": f"AI 分析失敗：{str(e)}"}), 500
