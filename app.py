@@ -69,11 +69,11 @@ EXERCISE_TARGETS = {
         'mountain_climber': 30,
         'squat': 15,
         'triceps_dip': 12,
-        'plank': 30,
+        'plank': 15,
         'high_knees': 20,
         'lunge': 16,
         'pushup_rotation': 10,
-        'side_plank': 30
+        'side_plank': 20
     },
     'advanced': {
         'jumping_jacks': 30,
@@ -83,11 +83,11 @@ EXERCISE_TARGETS = {
         'mountain_climber': 60,
         'squat': 30,
         'triceps_dip': 20,
-        'plank': 60,
+        'plank': 20,
         'high_knees': 40,
         'lunge': 30,
         'pushup_rotation': 20,
-        'side_plank': 30
+        'side_plank': 20
     }
 }
 
@@ -406,14 +406,61 @@ def analyze_landmarks(landmarks, state):
 
     # 8. 平板支撐 (計時修正版)
     elif ex_type == 'plank':
-        body_angle = calculate_angle(l_sh, l_hip, l_an)
-        if 160 < body_angle <= 180:
-            state['counter'] += dt
-            state['total_calories'] += CALORIE_METRICS['plank'] * dt * weight_mul
-            time_left = max(0, int(state['target'] - state['counter']))
-            state['hint'] = f'姿勢標準，撐住！剩下 {time_left} 秒'
+        # 平板支撐防誤判：
+        # 1. 肩、髖、膝、踝都要有足夠可見度
+        # 2. 身體要接近水平趴姿，而不是站著、坐著或只有半身
+        # 3. 身體線條要打直
+
+        vis_l_sh = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].visibility
+        vis_r_sh = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].visibility
+        vis_l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].visibility
+        vis_r_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].visibility
+        vis_l_kn = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].visibility
+        vis_r_kn = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].visibility
+        vis_l_an = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].visibility
+        vis_r_an = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].visibility
+
+        upper_visible = (
+            max(vis_l_sh, vis_r_sh) > 0.55 and max(vis_l_hip, vis_r_hip) > 0.55
+        )
+        lower_visible = (
+            max(vis_l_kn, vis_r_kn) > 0.55 and max(vis_l_an, vis_r_an) > 0.55
+        )
+
+        if not upper_visible or not lower_visible:
+            state['hint'] = '請退後一點，平板支撐需要肩、腰、膝蓋、腳踝都入鏡'
         else:
-            state['hint'] = '臀部請壓低！計時暫停中'
+            left_body_angle = calculate_angle(l_sh, l_hip, l_an)
+            right_body_angle = calculate_angle(r_sh, r_hip, r_an)
+            body_angle = max(left_body_angle, right_body_angle)
+
+            # 趴姿檢查：肩、髖、膝、踝的高度要接近同一水平線
+            # y 軸差距太大通常代表站姿、坐姿，或半身入鏡造成誤判
+            shoulder_y = min(l_sh[1], r_sh[1])
+            hip_y = min(l_hip[1], r_hip[1])
+            knee_y = min(l_kn[1], r_kn[1])
+            ankle_y = min(l_an[1], r_an[1])
+
+            body_y_range = (
+                max(shoulder_y, hip_y, knee_y, ankle_y)
+                - min(shoulder_y, hip_y, knee_y, ankle_y)
+            )
+
+            is_body_straight = body_angle > 160
+            is_horizontal_plank = body_y_range < 0.28
+            is_long_body_visible = abs(shoulder_y - ankle_y) > 0.20
+
+            if is_body_straight and is_horizontal_plank and is_long_body_visible:
+                state['counter'] += dt
+                state['total_calories'] += CALORIE_METRICS['plank'] * dt * weight_mul
+                time_left = max(0, int(state['target'] - state['counter']))
+                state['hint'] = f'姿勢標準，撐住！剩下 {time_left} 秒'
+            elif not is_horizontal_plank:
+                state['hint'] = '請轉成側面趴姿，肩膀、髖部、膝蓋、腳踝要接近一直線'
+            elif not is_body_straight:
+                state['hint'] = '臀部請壓低，身體保持一直線，計時暫停中'
+            else:
+                state['hint'] = '請讓全身完整入鏡，平板支撐才會開始計時'
 
     # ★ 9. 原地抬膝 (已明確補上姿勢指導文字，排除計時干擾)
     elif ex_type == 'high_knees':
