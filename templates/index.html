@@ -164,6 +164,33 @@
     </div>
 
     <script>
+        const HIIT_CLIENT_ID_KEY = 'hiit_client_id';
+
+        function getHiitClientId() {
+            let clientId = localStorage.getItem(HIIT_CLIENT_ID_KEY);
+
+            if (!clientId) {
+                if (window.crypto && window.crypto.randomUUID) {
+                    clientId = window.crypto.randomUUID();
+                } else {
+                    clientId = 'client-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+                }
+
+                localStorage.setItem(HIIT_CLIENT_ID_KEY, clientId);
+            }
+
+            return clientId;
+        }
+
+        function hiitFetch(url, options = {}) {
+            const headers = options.headers || {};
+            headers['X-Client-ID'] = getHiitClientId();
+
+            return fetch(url, {
+                ...options,
+                headers
+            });
+        }
         const exercises = [
             { id: 'jumping_jacks', name: '1. 開合跳', yt: 'qz9MFrQL3IA' },
             { id: 'wall_sit', name: '2. 靠牆屈膝', yt: '3tXV82N_-xA' },
@@ -300,7 +327,7 @@
             document.getElementById('circuit_controls').style.display = 'flex';
 
             isCircuitRunning = true;
-            fetch('/reset_circuit', { method: 'POST' }).finally(runExerciseStep);
+            hiitFetch('/reset_circuit', { method: 'POST' }).finally(runExerciseStep);
         }
 
         function runExerciseStep() {
@@ -332,7 +359,7 @@
             isReplaying = true;
             stopFrameLoop();
 
-            fetch('/pause_exercise', { method: 'POST' }).then(() => {
+            hiitFetch('/pause_exercise', { method: 'POST' }).then(() => {
                 video.style.opacity = '0';
                 video.style.position = 'absolute';
                 video.style.zIndex = '-1';
@@ -360,7 +387,7 @@
             video.style.zIndex = '1';
 
             if (isReplaying) {
-                fetch('/resume_exercise', { method: 'POST' }).then(res => res.json()).then(data => {
+                hiitFetch('/resume_exercise', { method: 'POST' }).then(res => res.json()).then(data => {
                     isReplaying = false;
                     isTransitioning = false;
                     updateDashboard(data);
@@ -368,7 +395,7 @@
                 });
             } else {
                 const level = document.getElementById('exercise_level').value;
-                fetch('/start_exercise', {
+                hiitFetch('/start_exercise', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: exercises[currentIndex].id, level: level, weight: userWeight })
@@ -410,7 +437,7 @@
 
                 const frame = canvas.toDataURL('image/jpeg', 0.72);
 
-                const res = await fetch('/analyze_frame', {
+                const res = await hiitFetch('/analyze_frame', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ frame })
@@ -460,7 +487,7 @@
             stopFrameLoop();
             isReplaying = false;
 
-            fetch('/stop_exercise', { method: 'POST' }).then(() => {
+            hiitFetch('/stop_exercise', { method: 'POST' }).then(() => {
                 currentIndex++;
                 runExerciseStep();
             });
@@ -493,12 +520,12 @@
             document.getElementById('exercise_title').textContent = '訓練結算中...';
             document.getElementById('hint').textContent = '生成 AI 報告中...';
 
-            fetch('/stop_exercise', { method: 'POST' })
+            hiitFetch('/stop_exercise', { method: 'POST' })
             .then(() => {
                 document.getElementById('modal_overlay').style.display = 'block';
                 document.getElementById('ai_modal').style.display = 'flex';
 
-                fetch('/get_ai_feedback', { method: 'POST' })
+                hiitFetch('/get_ai_feedback', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('ai_feedback_text').innerHTML = (data.feedback || '無法取得 AI 講評').replace(/\n/g, "<br>");
