@@ -152,7 +152,10 @@ def decode_base64_frame(data_url):
 
 def analyze_landmarks(landmarks):
     """保留原本 12 項運動判定核心邏輯。"""
-    global exercise_state
+    global exercise_state, mp_pose
+
+    if mp_pose is None:
+        get_pose_detector()
 
     l_sh = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
     l_el = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
@@ -591,15 +594,9 @@ def analyze_frame_api():
         frame = cv2.flip(frame, 1)
         img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        with mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=1,
-            enable_segmentation=False,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
-        ) as pose:
-            pose_detector, mp_pose, mp_draw = get_pose_detector()
-            results = pose_detector.process(img_rgb)
+        # 先透過 lazy loading 取得 MediaPipe pose 偵測器
+        pose_detector, pose_module, draw_utils = get_pose_detector()
+        results = pose_detector.process(img_rgb)
 
         with state_lock:
             if not exercise_state.get('is_started'):
@@ -616,7 +613,6 @@ def analyze_frame_api():
         with state_lock:
             exercise_state['hint'] = f'影像分析失敗：{str(e)}'
             return jsonify(public_state()), 400
-
 
 @app.route('/get_stats')
 def get_stats():
