@@ -16,8 +16,25 @@ from groq import Groq
 
 app = Flask(__name__)
 
-mp_pose = mp.solutions.pose
-mp_draw = mp.solutions.drawing_utils
+mp_pose = None
+pose = None
+mp_draw = None
+
+def get_pose_detector():
+    global mp_pose, pose, mp_draw
+
+    if pose is None:
+        mp_pose = mp.solutions.pose
+        mp_draw = mp.solutions.drawing_utils
+        pose = mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=0,
+            enable_segmentation=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+
+    return pose, mp_pose, mp_draw
 
 # Render/Gunicorn 可能有多個請求同時進來，狀態更新加鎖避免競態
 state_lock = threading.Lock()
@@ -581,7 +598,8 @@ def analyze_frame_api():
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         ) as pose:
-            results = pose.process(img_rgb)
+            pose_detector, mp_pose, mp_draw = get_pose_detector()
+            results = pose_detector.process(img_rgb)
 
         with state_lock:
             if not exercise_state.get('is_started'):
