@@ -23,7 +23,7 @@ mp_draw = mp.solutions.drawing_utils
 state_lock = threading.Lock()
 
 # Groq API：請在 Render Environment Variables 設定 GROQ_API_KEY
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 
