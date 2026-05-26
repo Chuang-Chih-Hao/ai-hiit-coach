@@ -236,6 +236,87 @@
             window.speechSynthesis.speak(test);
         }
 
+        function getShortSpeechText(text) {
+            if (!text) return '';
+
+            // 移除表情符號，避免語音唸出奇怪內容
+            let speech = text.replace(/[🟢⚠️⏱️🎉🔥💪✅❌]/g, '');
+
+            // 依照常見提示縮短語音，但畫面文字不受影響
+            const rules = [
+        ['準備動作完成：雙手放下、雙腳併攏，接著向外跳開', '準備，向外跳開'],
+        ['手舉過肩、雙腳打開標準；下一步請收回手腳', '很好，收回手腳'],
+        ['漂亮！手腳打開到位，回到併攏後繼續下一下', '很好，繼續下一下'],
+        ['開合跳要同時完成：雙手舉過肩，雙腳向外打開', '手腳同時打開'],
+
+        ['請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度', '背靠牆，下蹲'],
+        ['蹲姿到位！保持膝蓋約 90 度，再站起完成一次', '到位，站起來'],
+        ['調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高', '再蹲低一點'],
+
+        ['請確保全身入鏡，並呈現趴下撐體姿勢', '請全身入鏡'],
+        ['身體保持一直線，接著彎曲手肘下壓', '下壓'],
+        ['下壓到位！核心收緊，現在推起來', '推起來'],
+        ['漂亮！手臂已撐直，完成一次伏地挺身', '完成一次'],
+
+        ['調整位置：確保全身入鏡（肩、腰、膝蓋）', '請全身入鏡'],
+        ['請躺平！不要站著彎腰', '請躺平'],
+        ['起身到位！現在慢慢躺回地面，躺下後才會計數', '躺回去'],
+        ['已起身到位，請躺回地面完成這一下', '躺回去'],
+        ['完成一次！下背貼地後，再準備下一次起身', '完成一次'],
+        ['繼續動作：起身靠近膝蓋後，再躺回地面才算一次', '起身後躺回'],
+
+        ['請趴下呈現伏地挺身預備姿勢', '請趴下'],
+        ['保持伏地挺身預備姿勢，左右膝輪流往胸口收', '左右交替收膝'],
+        ['膝蓋再往胸口靠近一點，角度不足還不會計數', '膝蓋再高一點'],
+        ['左腳漂亮！', '左腳很好'],
+        ['右腳漂亮！', '右腳很好'],
+
+        ['準備深蹲：雙腳站穩，臀部往後往下坐', '準備深蹲'],
+        ['深蹲深度到位！保持胸口打開，現在站起來', '到位，站起來'],
+        ['再蹲低一點，膝蓋角度小於 90 度後再站起才會計數', '再蹲低一點'],
+
+        ['推起來！', '推起來'],
+        ['漂亮！手臂撐直完成一次，接著慢慢下壓', '完成一次'],
+        ['手掌撐穩椅緣，身體靠近椅子，準備往下沉', '準備下沉'],
+        ['繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起', '下降後推起'],
+
+        ['姿勢標準，撐住！', '撐住'],
+        ['臀部請壓低！計時暫停中', '臀部壓低'],
+
+        ['做得好！膝蓋盡量抬高至腰部高度', '膝蓋抬高'],
+        ['背部打直，核心收緊，左右腳快速交替高抬', '背打直，快抬膝'],
+
+        ['站姿準備完成：向前或向後跨一步，身體垂直下沉', '準備弓步'],
+        ['弓步深度到位，完成一次！推回站姿後換腳', '完成一次，換腳'],
+        ['下蹲到位！前後腳膝蓋都彎曲，保持身體穩定', '到位，站回來'],
+        ['弓步再下沉一點，前後膝都接近彎曲後才會計數', '再下沉一點'],
+
+        ['請保持背部與腿部呈一直線', '身體打直'],
+        ['推起並轉身舉手！', '推起轉身'],
+        ['完美轉身！換邊繼續', '換邊繼續'],
+
+        ['時間到！請立刻翻身換右肘撐地，左手舉高！', '換邊'],
+        ['太棒了！雙側側平板皆挑戰成功！', '挑戰成功'],
+        ['沒撐住或手放下了喔！請左肘撐起、右手舉高，計時暫停中', '撐起來'],
+        ['右邊快完成了，加油！請右肘撐起、左手舉高，計時暫停中', '右邊撐住']
+    ];
+
+            for (const [fullText, shortText] of rules) {
+                if (speech.includes(fullText)) {
+                    return shortText;
+                }
+            }
+
+            // 處理倒數秒數類型：例如「剩下 20 秒」「剩 10 秒」
+            const secondMatch = speech.match(/剩(?:下)?\s*(\d+)\s*秒/);
+            if (secondMatch) {
+                return `剩 ${secondMatch[1]} 秒`;
+            }
+
+            // 如果沒有對應規則，就取前 12 個中文字左右，避免講太長
+            return speech.length > 12 ? speech.slice(0, 12) : speech;
+        }
+
         function speakText(text, force = false) {
             if (!voiceEnabled) return;
             if (!speechUnlocked) return;
@@ -257,7 +338,7 @@
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'zh-TW';
-            utterance.rate = 1.05;
+            utterance.rate = 1.25;
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
 
@@ -389,7 +470,7 @@
             const ex = exercises[currentIndex];
             document.getElementById('exercise_title').textContent = ex.name;
             document.getElementById('hint').textContent = "正在播放教學，請準備...";
-            speakText(`下一項運動，${ex.name}，請先觀看教學。`, true);
+            speakText(`下一項，${ex.name}`, true);
 
             stopFrameLoop();
 
@@ -532,8 +613,11 @@
                 document.getElementById('total_calories').textContent = Number(data.total_calories || 0).toFixed(2);
                 const hintText = data.hint || '';
                 document.getElementById('hint').textContent = hintText;
-                speakText(hintText);
-        }
+
+                // 畫面顯示完整文字，但語音只唸縮短版
+                const shortSpeechText = getShortSpeechText(hintText);
+                speakText(shortSpeechText);
+            }
 
         function nextExercise() {
             if (!isCircuitRunning) return;
