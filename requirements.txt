@@ -2,5 +2,5 @@ Flask==3.0.3
 gunicorn==22.0.0
 groq==0.9.0
 mediapipe==0.10.35
-opencv-python-headless
-numpy
+opencv-python-headless==4.11.0.86
+numpy==1.26.4
