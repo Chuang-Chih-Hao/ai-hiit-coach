@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 徒手 HIIT 巡迴健身教練</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #1a1a1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #app_container { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        header { background-color: #333; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 100; }
+        h1 { margin: 0; font-size: 24px; color: #4CAF50; white-space: nowrap; }
+
+        #settings_bar { display: flex; gap: 15px; align-items: center; }
+        select, button { padding: 8px 12px; font-size: 16px; border-radius: 5px; border: none; background: #444; color: white; outline: none; }
+        button { background-color: #4CAF50; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: #45a049; }
+
+        #main_display { flex: 1; position: relative; background: #000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+
+        #camera_feed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            position: relative;
+            z-index: 1;
+            transition: opacity 0.3s;
+            transform: scaleX(-1);
+            background: #000;
+        }
+
+        #camera_status {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 5;
+            background: rgba(0,0,0,0.65);
+            border: 1px solid rgba(76,175,80,0.65);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #ddd;
+            font-size: 14px;
+        }
+
+        #yt_player_container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 10; background: #000; }
+        #skip_overlay { position: absolute; bottom: 80px; right: 30px; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; font-size: 18px; z-index: 20; display: none; border: 1px solid #4CAF50; }
+
+        #dashboard { background-color: #222; padding: 20px; display: flex; justify-content: space-around; align-items: center; border-top: 2px solid #4CAF50; z-index: 100; }
+        .data-box { text-align: center; }
+        .data-value { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .data-label { font-size: 14px; color: #aaa; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        #hint_box { flex: 2; text-align: left; padding-left: 30px; border-left: 2px solid #444; }
+        #hint { font-size: 24px; color: #FFD700; font-weight: bold; margin: 0; }
+
+        #circuit_controls {
+            display: none;
+            flex: 1;
+            justify-content: space-between;
+            align-items: center;
+            margin-left: 40px;
+        }
+        #exercise_title { font-size: 20px; color: #fff; background: #444; padding: 5px 15px; border-radius: 20px; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; }
+
+        #ai_modal {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #222; padding: 30px; border-radius: 15px; z-index: 300;
+            text-align: center; box-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+            border: 2px solid #4CAF50; width: 85%; max-width: 450px;
+            max-height: 75vh; flex-direction: column;
+        }
+        #ai_feedback_text {
+            font-size: 16px; line-height: 1.6; color: #ddd; text-align: justify;
+            margin-top: 15px; margin-bottom: 15px; overflow-y: auto;
+            padding-right: 15px; flex-grow: 1; min-height: 0;
+        }
+        #ai_feedback_text::-webkit-scrollbar { width: 8px; }
+        #ai_feedback_text::-webkit-scrollbar-track { background: #333; border-radius: 4px; }
+        #ai_feedback_text::-webkit-scrollbar-thumb { background: #4CAF50; border-radius: 4px; }
+
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 28px;
+            color: #aaa; cursor: pointer; transition: 0.3s; line-height: 1;
+        }
+        .close-btn:hover { color: #fff; transform: scale(1.1); }
+
+        #weight_modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 40px; border-radius: 15px; z-index: 300; text-align: center; box-shadow: 0 0 30px rgba(0, 0, 0, 0.9); border: 2px solid #444; }
+
+        @media (max-width: 900px) {
+            header { flex-direction: column; gap: 12px; align-items: stretch; }
+            #settings_bar, #circuit_controls { margin-left: 0; flex-wrap: wrap; }
+            #dashboard { flex-direction: column; gap: 12px; align-items: stretch; }
+            #hint_box { border-left: none; border-top: 2px solid #444; padding-left: 0; padding-top: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app_container">
+        <header>
+            <h1>⚡HIIT 巡迴教練</h1>
+
+            <div id="settings_bar">
+                <select id="camera_select"></select>
+                <select id="exercise_level">
+                    <option value="beginner">🟢 初階</option>
+                    <option value="advanced">🔴 進階</option>
+                </select>
+                <button onclick="startCircuit()">開始巡迴訓練</button>
+            </div>
+
+            <div id="circuit_controls">
+                <span id="exercise_title">等待開始...</span>
+                <div>
+                    <button onclick="replayVideo()" style="background: #2196F3; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">重看教學 (Replay)</button>
+                    <button onclick="nextExercise()" style="background: #FF5722; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">跳過 (Skip)</button>
+                    <button onclick="abortCircuit()" style="background: #E91E63; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">放棄 (Quit)</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="main_display">
+            <video id="camera_feed" autoplay playsinline muted></video>
+            <canvas id="capture_canvas" style="display:none;"></canvas>
+            <div id="camera_status">正在初始化攝像頭...</div>
+
+            <div id="yt_player_container">
+                <div id="yt_player"></div>
+            </div>
+            <div id="skip_overlay">按下鍵盤 <b>[T]</b> 鍵跳過教學</div>
+        </div>
+
+        <div id="dashboard">
+            <div class="data-box">
+                <div class="data-value"><span id="count">0</span><span id="target" style="font-size:24px; color:#888;"> / 0</span></div>
+                <div class="data-label" id="progress_label">完成進度 (次數)</div>
+            </div>
+            <div class="data-box" style="border-left: 2px solid #444; padding-left: 30px;">
+                <div class="data-value"><span id="total_calories">0.00</span> kcal</div>
+                <div class="data-label">本次巡迴累計消耗</div>
+            </div>
+            <div id="hint_box">
+                <div class="data-label" style="margin-bottom: 5px;">動作指導</div>
+                <p id="hint">請允許瀏覽器攝像頭權限並點擊開始</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal_overlay"></div>
+    <div id="ai_modal">
+        <span class="close-btn" onclick="location.reload()">&times;</span>
+        <h2 style="margin-top: 5px; margin-bottom: 10px; font-size: 22px;">🤖 AI 巡迴總結報告</h2>
+        <div id="ai_feedback_text">正在生成您的專屬分析報告，請稍候...</div>
+        <button style="margin-top:15px; width:100%; background:#4CAF50; color:white; border:none; padding:12px; border-radius:10px; font-size:18px; cursor:pointer; flex-shrink: 0;" onclick="location.reload()">完成並關閉</button>
+    </div>
+
+    <div id="weight_modal">
+        <h2 style="color:#FFD700; margin-bottom:20px;">開始前，請輸入您的體重 (kg)</h2>
+        <p style="color:#aaa; margin-bottom:20px;">我們需要您的體重來估算卡路里消耗量</p>
+        <input type="number" id="user_weight_input" placeholder="例如: 65" min="30" max="200" style="font-size:32px; padding:10px; width:180px; text-align:center; border-radius:8px; border:none; margin-bottom:30px;">
+        <br>
+        <button onclick="confirmWeightAndStart()" style="background:#4CAF50; color:white; font-size:22px; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">確認並開始</button>
+        <button onclick="document.getElementById('weight_modal').style.display='none'; document.getElementById('modal_overlay').style.display='none';" style="background:#555; color:white; font-size:22px; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; margin-left:15px;">取消</button>
+    </div>
+
+    <script>
+        const exercises = [
+            { id: 'jumping_jacks', name: '1. 開合跳', yt: 'qz9MFrQL3IA' },
+            { id: 'wall_sit', name: '2. 靠牆屈膝', yt: '3tXV82N_-xA' },
+            { id: 'pushup', name: '3. 伏地挺身', yt: 'IODxDxX7oi4' },
+            { id: 'sit_up', name: '4. 仰臥起坐', yt: '1fbU_MkV7NE' },
+            { id: 'mountain_climber', name: '5. 計時登山者', yt: 'kLh-uczlPLg' },
+            { id: 'squat', name: '6. 深蹲', yt: 'CJVQJHpRG70' },
+            { id: 'triceps_dip', name: '7. 椅子三頭肌撐體', yt: '5CgfgO__oGo' },
+            { id: 'plank', name: '8. 平板支撐 (計時)', yt: 'ASdvN_XEl_c' },
+            { id: 'high_knees', name: '9. 原地抬膝', yt: 'vpCoRIV5L9M' },
+            { id: 'lunge', name: '10. 弓步深蹲', yt: 'tQNktxPkSeE' },
+            { id: 'pushup_rotation', name: '11. 掌上壓後轉身', yt: 'Ohz9RWkCvH0' },
+            { id: 'side_plank', name: '12. 側平板式 (每側)', yt: 'szU9hzFTwA0' }
+        ];
+
+        let currentIndex = 0;
+        let ytPlayer;
+        let updateInterval;
+        let isCircuitRunning = false;
+        let isTransitioning = false;
+        let userWeight = 65.0;
+        let isReplaying = false;
+        let mediaStream = null;
+        let isSendingFrame = false;
+
+        const video = document.getElementById('camera_feed');
+        const canvas = document.getElementById('capture_canvas');
+        const cameraStatus = document.getElementById('camera_status');
+
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt_player', {
+                height: '100%',
+                width: '100%',
+                playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+                events: { 'onStateChange': onPlayerStateChange }
+            });
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.ENDED) startDetection();
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if ((event.key === 't' || event.key === 'T') && isCircuitRunning && document.getElementById('yt_player_container').style.display === 'block') {
+                startDetection();
+            }
+        });
+
+        async function loadCameraOptions() {
+            const select = document.getElementById('camera_select');
+            select.innerHTML = '<option value="">🎥 預設攝像頭</option>';
+
+            try {
+                await startBrowserCamera();
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+
+                select.innerHTML = '';
+                cameras.forEach((camera, index) => {
+                    const option = document.createElement('option');
+                    option.value = camera.deviceId;
+                    option.textContent = `🎥 ${camera.label || `攝像頭 ${index + 1}`}`;
+                    select.appendChild(option);
+                });
+
+                if (cameras.length === 0) {
+                    select.innerHTML = '<option value="">未偵測到攝像頭</option>';
+                    cameraStatus.textContent = '未偵測到攝像頭，請檢查瀏覽器權限。';
+                }
+            } catch (err) {
+                cameraStatus.textContent = '攝像頭啟動失敗：' + err.message;
+                document.getElementById('hint').textContent = '請允許瀏覽器攝像頭權限，Render 網站需使用 HTTPS。';
+            }
+
+            select.onchange = async (e) => {
+                await startBrowserCamera(e.target.value);
+            };
+        }
+
+        async function startBrowserCamera(deviceId = null) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('此瀏覽器不支援 getUserMedia');
+            }
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    width: { ideal: 960 },
+                    height: { ideal: 540 },
+                    facingMode: 'user'
+                },
+                audio: false
+            };
+
+            if (deviceId) {
+                constraints.video.deviceId = { exact: deviceId };
+                delete constraints.video.facingMode;
+            }
+
+            mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = mediaStream;
+            await video.play();
+            cameraStatus.textContent = '攝像頭已啟動：畫面由瀏覽器本機提供';
+        }
+
+        loadCameraOptions();
+
+        function startCircuit() {
+            document.getElementById('modal_overlay').style.display = 'block';
+            document.getElementById('weight_modal').style.display = 'block';
+            document.getElementById('user_weight_input').focus();
+        }
+
+        function confirmWeightAndStart() {
+            const inputWeight = document.getElementById('user_weight_input').value;
+            if (!inputWeight || inputWeight <= 0) {
+                alert("請輸入有效的體重！");
+                return;
+            }
+
+            userWeight = parseFloat(inputWeight);
+
+            document.getElementById('weight_modal').style.display = 'none';
+            document.getElementById('modal_overlay').style.display = 'none';
+            document.getElementById('settings_bar').style.display = 'none';
+            document.getElementById('circuit_controls').style.display = 'flex';
+
+            isCircuitRunning = true;
+            fetch('/reset_circuit', { method: 'POST' }).finally(runExerciseStep);
+        }
+
+        function runExerciseStep() {
+            if (currentIndex >= exercises.length) {
+                finishCircuit();
+                return;
+            }
+
+            const ex = exercises[currentIndex];
+            document.getElementById('exercise_title').textContent = ex.name;
+            document.getElementById('hint').textContent = "正在播放教學，請準備...";
+
+            stopFrameLoop();
+
+            video.style.opacity = '0';
+            video.style.position = 'absolute';
+            video.style.zIndex = '-1';
+
+            document.getElementById('yt_player_container').style.display = 'block';
+            document.getElementById('skip_overlay').style.display = 'block';
+
+            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                ytPlayer.loadVideoById(ex.yt);
+            }
+        }
+
+        function replayVideo() {
+            if (!isCircuitRunning) return;
+            isReplaying = true;
+            stopFrameLoop();
+
+            fetch('/pause_exercise', { method: 'POST' }).then(() => {
+                video.style.opacity = '0';
+                video.style.position = 'absolute';
+                video.style.zIndex = '-1';
+
+                document.getElementById('yt_player_container').style.display = 'block';
+                document.getElementById('skip_overlay').style.display = 'block';
+
+                const ex = exercises[currentIndex];
+                if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                    ytPlayer.loadVideoById(ex.yt);
+                }
+            });
+        }
+
+        function startDetection() {
+            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+                ytPlayer.stopVideo();
+            }
+
+            document.getElementById('yt_player_container').style.display = 'none';
+            document.getElementById('skip_overlay').style.display = 'none';
+
+            video.style.opacity = '1';
+            video.style.position = 'relative';
+            video.style.zIndex = '1';
+
+            if (isReplaying) {
+                fetch('/resume_exercise', { method: 'POST' }).then(res => res.json()).then(data => {
+                    isReplaying = false;
+                    isTransitioning = false;
+                    updateDashboard(data);
+                    startFrameLoop();
+                });
+            } else {
+                const level = document.getElementById('exercise_level').value;
+                fetch('/start_exercise', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: exercises[currentIndex].id, level: level, weight: userWeight })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    isTransitioning = false;
+                    updateDashboard(data);
+                    startFrameLoop();
+                });
+            }
+        }
+
+        function startFrameLoop() {
+            stopFrameLoop();
+            sendFrame();
+            updateInterval = setInterval(sendFrame, 400);
+        }
+
+        function stopFrameLoop() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = null;
+        }
+
+        async function sendFrame() {
+            if (!isCircuitRunning || isTransitioning || isSendingFrame) return;
+            if (!video.videoWidth || !video.videoHeight) return;
+
+            isSendingFrame = true;
+
+            try {
+                const maxWidth = 640;
+                const scale = Math.min(1, maxWidth / video.videoWidth);
+                canvas.width = Math.round(video.videoWidth * scale);
+                canvas.height = Math.round(video.videoHeight * scale);
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const frame = canvas.toDataURL('image/jpeg', 0.72);
+
+                const res = await fetch('/analyze_frame', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frame })
+                });
+
+                const data = await res.json();
+                updateDashboard(data);
+
+                if (data.counter >= data.target && data.is_started && !isTransitioning) {
+                    isTransitioning = true;
+                    document.getElementById('count').style.color = "#4CAF50";
+                    setTimeout(nextExercise, 2000);
+                } else if (!isTransitioning) {
+                    document.getElementById('count').style.color = "white";
+                }
+            } catch (err) {
+                document.getElementById('hint').textContent = '傳送畫面失敗：' + err.message;
+            } finally {
+                isSendingFrame = false;
+            }
+        }
+
+        function updateDashboard(data) {
+            if (!data) return;
+
+            const isTimed = (data.type === 'plank' || data.type === 'side_plank');
+
+            if (isTimed) {
+                let timeLeft = Math.max(0, Math.ceil(data.target - data.counter));
+                document.getElementById('count').textContent = timeLeft;
+                document.getElementById('target').textContent = " 秒";
+                document.getElementById('progress_label').textContent = "剩餘時間 (倒數計時)";
+            } else {
+                document.getElementById('count').textContent = Math.floor(data.counter);
+                document.getElementById('target').textContent = " / " + Math.floor(data.target);
+                document.getElementById('progress_label').textContent = "完成進度 (次數)";
+            }
+
+            document.getElementById('total_calories').textContent = Number(data.total_calories || 0).toFixed(2);
+            document.getElementById('hint').textContent = data.hint || '';
+        }
+
+        function nextExercise() {
+            if (!isCircuitRunning) return;
+
+            isTransitioning = true;
+            stopFrameLoop();
+            isReplaying = false;
+
+            fetch('/stop_exercise', { method: 'POST' }).then(() => {
+                currentIndex++;
+                runExerciseStep();
+            });
+        }
+
+        function abortCircuit() {
+            if (confirm("真的要放棄訓練嗎？\n(點擊確認將提早結束並結算目前成績)")) {
+                isCircuitRunning = false;
+                stopFrameLoop();
+                isTransitioning = false;
+
+                if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+
+                document.getElementById('yt_player_container').style.display = 'none';
+                document.getElementById('skip_overlay').style.display = 'none';
+                video.style.opacity = '1';
+                video.style.position = 'relative';
+                video.style.zIndex = '1';
+
+                finishCircuit();
+            }
+        }
+
+        function finishCircuit() {
+            isCircuitRunning = false;
+            stopFrameLoop();
+
+            document.getElementById('circuit_controls').style.display = 'none';
+            document.getElementById('settings_bar').style.display = 'flex';
+            document.getElementById('exercise_title').textContent = '訓練結算中...';
+            document.getElementById('hint').textContent = '生成 AI 報告中...';
+
+            fetch('/stop_exercise', { method: 'POST' })
+            .then(() => {
+                document.getElementById('modal_overlay').style.display = 'block';
+                document.getElementById('ai_modal').style.display = 'flex';
+
+                fetch('/get_ai_feedback', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('ai_feedback_text').innerHTML = (data.feedback || '無法取得 AI 講評').replace(/\n/g, "<br>");
+                })
+                .catch(err => {
+                    document.getElementById('ai_feedback_text').textContent = 'AI 講評產生失敗：' + err.message;
+                });
+            });
+        }
+    </script>
+</body>
+</html>
