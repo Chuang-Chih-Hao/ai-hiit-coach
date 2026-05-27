@@ -28,6 +28,13 @@
             transform: scaleX(-1);
             background: #000;
         }
+        
+        #skeleton_canvas {
+            position: absolute;
+            z-index: 2;
+            pointer-events: none;
+            transform: scaleX(-1);
+            }
 
         #camera_status {
             position: absolute;
@@ -122,6 +129,7 @@
 
         <div id="main_display">
             <video id="camera_feed" autoplay playsinline muted></video>
+            <canvas id="skeleton_canvas"></canvas>
             <canvas id="capture_canvas" style="display:none;"></canvas>
             <div id="camera_status">正在初始化攝像頭...</div>
 
@@ -347,6 +355,8 @@
 
         const video = document.getElementById('camera_feed');
         const canvas = document.getElementById('capture_canvas');
+        const skeletonCanvas = document.getElementById('skeleton_canvas');
+        const skeletonCtx = skeletonCanvas.getContext('2d');
         const cameraStatus = document.getElementById('camera_status');
 
         var tag = document.createElement('script');
