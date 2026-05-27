@@ -565,6 +565,65 @@
             updateInterval = null;
         }
 
+        const POSE_CONNECTIONS = [
+            [11, 12],
+            [11, 13], [13, 15],
+            [12, 14], [14, 16],
+            [11, 23], [12, 24],
+            [23, 24],
+            [23, 25], [25, 27],
+            [24, 26], [26, 28],
+            [27, 31], [28, 32]
+        ];
+
+        function resizeSkeletonCanvas() {
+            const rect = video.getBoundingClientRect();
+            skeletonCanvas.width = rect.width;
+            skeletonCanvas.height = rect.height;
+            skeletonCanvas.style.width = rect.width + 'px';
+            skeletonCanvas.style.height = rect.height + 'px';
+        }
+
+        function drawSkeleton(landmarks) {
+            resizeSkeletonCanvas();
+
+            skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+
+            if (!landmarks || landmarks.length === 0) return;
+
+            const w = skeletonCanvas.width;
+            const h = skeletonCanvas.height;
+
+            skeletonCtx.lineWidth = 4;
+            skeletonCtx.strokeStyle = '#00ff66';
+            skeletonCtx.fillStyle = '#ffeb3b';
+
+            for (const [a, b] of POSE_CONNECTIONS) {
+                const p1 = landmarks[a];
+                const p2 = landmarks[b];
+
+                if (!p1 || !p2) continue;
+                if ((p1.visibility || 0) < 0.45 || (p2.visibility || 0) < 0.45) continue;
+
+                skeletonCtx.beginPath();
+                skeletonCtx.moveTo(p1.x * w, p1.y * h);
+                skeletonCtx.lineTo(p2.x * w, p2.y * h);
+                skeletonCtx.stroke();
+            }
+
+            for (const p of landmarks) {
+                if (!p || (p.visibility || 0) < 0.45) continue;
+
+                skeletonCtx.beginPath();
+                skeletonCtx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2);
+                skeletonCtx.fill();
+            }
+        }
+
+        function clearSkeleton() {
+            skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+        }
+
         async function sendFrame() {
             if (!isCircuitRunning || isTransitioning || isSendingFrame) return;
             if (!video.videoWidth || !video.videoHeight) return;
