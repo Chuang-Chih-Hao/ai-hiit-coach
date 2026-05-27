@@ -53,11 +53,9 @@ CALORIE_METRICS = {
     'mountain_climber': 0.15,
     'squat': 0.40,
     'triceps_dip': 0.30,
-    'plank': 0.08,
     'high_knees': 0.18,
     'lunge': 0.38,
-    'pushup_rotation': 0.55,
-    'side_plank': 0.45
+    'pushup_rotation': 0.55
 }
 
 EXERCISE_TARGETS = {
@@ -69,11 +67,9 @@ EXERCISE_TARGETS = {
         'mountain_climber': 30,
         'squat': 15,
         'triceps_dip': 12,
-        'plank': 15,
         'high_knees': 20,
         'lunge': 16,
-        'pushup_rotation': 10,
-        'side_plank': 20
+        'pushup_rotation': 10
     },
     'advanced': {
         'jumping_jacks': 30,
@@ -83,11 +79,9 @@ EXERCISE_TARGETS = {
         'mountain_climber': 60,
         'squat': 30,
         'triceps_dip': 20,
-        'plank': 20,
         'high_knees': 40,
         'lunge': 30,
-        'pushup_rotation': 20,
-        'side_plank': 20
+        'pushup_rotation': 20
     }
 }
 
@@ -404,65 +398,7 @@ def analyze_landmarks(landmarks, state):
         else:
             state['hint'] = '繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起'
 
-    # 8. 平板支撐 (計時修正版)
-    elif ex_type == 'plank':
-        # 平板支撐防誤判：
-        # 1. 肩、髖、膝、踝都要有足夠可見度
-        # 2. 身體要接近水平趴姿，而不是站著、坐著或只有半身
-        # 3. 身體線條要打直
-
-        vis_l_sh = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].visibility
-        vis_r_sh = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].visibility
-        vis_l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].visibility
-        vis_r_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].visibility
-        vis_l_kn = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].visibility
-        vis_r_kn = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].visibility
-        vis_l_an = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].visibility
-        vis_r_an = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].visibility
-
-        upper_visible = (
-            max(vis_l_sh, vis_r_sh) > 0.55 and max(vis_l_hip, vis_r_hip) > 0.55
-        )
-        lower_visible = (
-            max(vis_l_kn, vis_r_kn) > 0.55 and max(vis_l_an, vis_r_an) > 0.55
-        )
-
-        if not upper_visible or not lower_visible:
-            state['hint'] = '請退後一點，平板支撐需要肩、腰、膝蓋、腳踝都入鏡'
-        else:
-            left_body_angle = calculate_angle(l_sh, l_hip, l_an)
-            right_body_angle = calculate_angle(r_sh, r_hip, r_an)
-            body_angle = max(left_body_angle, right_body_angle)
-
-            # 趴姿檢查：肩、髖、膝、踝的高度要接近同一水平線
-            # y 軸差距太大通常代表站姿、坐姿，或半身入鏡造成誤判
-            shoulder_y = min(l_sh[1], r_sh[1])
-            hip_y = min(l_hip[1], r_hip[1])
-            knee_y = min(l_kn[1], r_kn[1])
-            ankle_y = min(l_an[1], r_an[1])
-
-            body_y_range = (
-                max(shoulder_y, hip_y, knee_y, ankle_y)
-                - min(shoulder_y, hip_y, knee_y, ankle_y)
-            )
-
-            is_body_straight = body_angle > 160
-            is_horizontal_plank = body_y_range < 0.28
-            is_long_body_visible = abs(shoulder_y - ankle_y) > 0.20
-
-            if is_body_straight and is_horizontal_plank and is_long_body_visible:
-                state['counter'] += dt
-                state['total_calories'] += CALORIE_METRICS['plank'] * dt * weight_mul
-                time_left = max(0, int(state['target'] - state['counter']))
-                state['hint'] = f'姿勢標準，撐住！剩下 {time_left} 秒'
-            elif not is_horizontal_plank:
-                state['hint'] = '請轉成側面趴姿，肩膀、髖部、膝蓋、腳踝要接近一直線'
-            elif not is_body_straight:
-                state['hint'] = '臀部請壓低，身體保持一直線，計時暫停中'
-            else:
-                state['hint'] = '請讓全身完整入鏡，平板支撐才會開始計時'
-
-    # ★ 9. 原地抬膝 (已明確補上姿勢指導文字，排除計時干擾)
+    # 8. 原地抬膝 (已明確補上姿勢指導文字，排除計時干擾)
     elif ex_type == 'high_knees':
         l_up = l_kn[1] < l_hip[1] + 0.05
         r_up = r_kn[1] < r_hip[1] + 0.05
@@ -478,7 +414,7 @@ def analyze_landmarks(landmarks, state):
             # 靜止或腳放下時的純姿勢建議
             state['hint'] = '背部打直，核心收緊，左右腳快速交替高抬'
 
-    # 10. 弓步深蹲
+    # 9. 弓步深蹲
     elif ex_type == 'lunge':
         l_ang = calculate_angle(l_hip, l_kn, l_an)
         r_ang = calculate_angle(r_hip, r_kn, r_an)
@@ -497,7 +433,7 @@ def analyze_landmarks(landmarks, state):
             state['hint'] = '弓步再下沉一點，前後膝都接近彎曲後才會計數'
 
     # ==========================================
-    # 11. 掌上壓後轉身 (Pushup Rotation) - 順序防呆版
+    # 10. 掌上壓後轉身 (Pushup Rotation) - 順序防呆版
     # ==========================================
     elif ex_type == 'pushup_rotation':
         # 1. 拔除容易誤判的腳踝能見度，改看身體打直角度即可 (大幅提升容錯率)
@@ -530,75 +466,6 @@ def analyze_landmarks(landmarks, state):
                     state['total_calories'] += CALORIE_METRICS['pushup_rotation'] * weight_mul
                     state['hint'] = '完美轉身！換邊繼續'
                     state['stage'] = 'up' # 結算後重置，等待下一次的下壓
-
-    # ==========================================
-    # 12. 側平板式 (Side Plank) - 靜態維持防偷懶版
-    # ==========================================
-    elif ex_type == 'side_plank':
-        # 1. 初始化方向狀態 ('left_side' 代表左肘撐地右手舉高，'right_side' 反之)
-        if state['stage'] not in ['left_side', 'right_side']:
-            state['stage'] = 'left_side'
-
-        # 2. 核心骨架角度計算
-        # 計算兩邊 脖子(肩中點)-髖部-膝蓋 的打直程度，確保身體沒有掉到地上
-        l_hip_line = calculate_angle(l_sh, l_hip, l_kn)
-        r_hip_line = calculate_angle(r_sh, r_hip, r_kn)
-
-        # 3. 偵測目前是哪一邊在撐地與舉手
-        is_holding = False
-        current_side = state['stage']
-
-        if current_side == 'left_side':
-            # 左肘撐地狀況：身體右側朝上
-            # 條件 A：右手腕(r_wr)必須明顯高於右肩膀(r_sh)，代表右手高舉
-            # 條件 B：右側身體必須打直 (角度 > 150)，代表屁股有撐起來，沒有躺下
-            r_arm_up = r_wr[1] < r_sh[1] - 0.15
-            r_body_straight = r_hip_line > 150
-
-            if r_arm_up and r_body_straight:
-                is_holding = True
-
-        elif current_side == 'right_side':
-            # 右肘撐地狀況：身體左側朝上
-            # 條件 A：左手腕(l_wr)必須明顯高於左肩膀(l_sh)
-            # 條件 B：左側身體必須打直 (角度 > 150)
-            l_arm_up = l_wr[1] < l_sh[1] - 0.15
-            l_body_straight = l_hip_line > 150
-
-            if l_arm_up and l_body_straight:
-                is_holding = True
-
-        # 4. 狀態機與動態秒數結算
-        if is_holding:
-            # 姿勢完全標準，開始扣秒數！
-            state['counter'] += dt
-            state['total_calories'] += CALORIE_METRICS['side_plank'] * dt * weight_mul
-
-            # 計算當前側邊撐了幾秒
-            current_side_seconds = state['counter']
-
-            if current_side == 'left_side':
-                if current_side_seconds < 15.0:
-                    time_left = max(0, int(15.0 - current_side_seconds))
-                    state['hint'] = f'🟢 左肘撐地中！保持核心收緊，右手舉高，剩 {time_left} 秒'
-                else:
-                    # 左邊滿 15 秒，自動切換到右邊
-                    state['stage'] = 'right_side'
-                    state['hint'] = '⏱️ 時間到！請立刻翻身換右肘撐地，左手舉高！'
-
-            elif current_side == 'right_side':
-                # 右邊的計時是從 15 秒一路上升到 30 秒
-                if current_side_seconds < 30.0:
-                    time_left = max(0, int(30.0 - current_side_seconds))
-                    state['hint'] = f'🟢 右肘撐地中！最後衝刺，左手舉高，剩 {time_left} 秒'
-                else:
-                    state['hint'] = '🎉 太棒了！雙側側平板皆挑戰成功！'
-        else:
-            # 沒撐住、手放下或躺下了，計時自動暫停
-            if current_side == 'left_side':
-                state['hint'] = '⚠️ 沒撐住或手放下了喔！請左肘撐起、右手舉高，計時暫停中'
-            else:
-                state['hint'] = '⚠️ 右邊快完成了，加油！請右肘撐起、左手舉高，計時暫停中'
 
 
     return public_state(state)

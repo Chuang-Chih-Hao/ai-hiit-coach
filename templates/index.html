@@ -200,11 +200,9 @@
             { id: 'mountain_climber', name: '5. 計時登山者', yt: 'kLh-uczlPLg' },
             { id: 'squat', name: '6. 深蹲', yt: 'CJVQJHpRG70' },
             { id: 'triceps_dip', name: '7. 椅子三頭肌撐體', yt: '5CgfgO__oGo' },
-            { id: 'plank', name: '8. 平板支撐 (計時)', yt: 'ASdvN_XEl_c' },
-            { id: 'high_knees', name: '9. 原地抬膝', yt: 'vpCoRIV5L9M' },
-            { id: 'lunge', name: '10. 弓步深蹲', yt: 'tQNktxPkSeE' },
-            { id: 'pushup_rotation', name: '11. 掌上壓後轉身', yt: 'Ohz9RWkCvH0' },
-            { id: 'side_plank', name: '12. 側平板式 (每側)', yt: 'szU9hzFTwA0' }
+            { id: 'high_knees', name: '8. 原地抬膝', yt: 'vpCoRIV5L9M' },
+            { id: 'lunge', name: '9. 弓步深蹲', yt: 'tQNktxPkSeE' },
+            { id: 'pushup_rotation', name: '10. 掌上壓後轉身', yt: 'Ohz9RWkCvH0' }
         ];
 
         let currentIndex = 0;
@@ -283,10 +281,6 @@
         ['手掌撐穩椅緣，身體靠近椅子，準備往下沉', '準備下沉'],
         ['繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起', '下推'],
 
-        ['姿勢標準，撐住！', '撐住'],
-        ['臀部請壓低！計時暫停中', '再壓低計時暫停'],
-        ['請退後一點，平板支撐需要肩、腰、膝蓋、腳踝都入鏡', '全身入鏡'],
-
         ['做得好！膝蓋盡量抬高至腰部高度', '抬高至腰部'],
         ['背部打直，核心收緊，左右腳快速交替高抬', '快速抬腳'],
         ['繼續保持節奏，膝蓋抬高到位才會計數', '保持節奏'],
@@ -299,11 +293,6 @@
         ['請保持背部與腿部呈一直線', '背與腿打直'],
         ['推起並轉身舉手！', '轉身舉手'],
         ['完美轉身！換邊繼續', '換邊繼續'],
-
-        ['時間到！請立刻翻身換右肘撐地，左手舉高！', '時間到請換邊'],
-        ['太棒了！雙側側平板皆挑戰成功！', '完成兩邊了'],
-        ['沒撐住或手放下了喔！請左肘撐起、右手舉高，計時暫停中', '計時暫停 請撐起'],
-        ['右邊快完成了，加油！請右肘撐起、左手舉高，計時暫停中', '計時暫停 請撐住'],
     ];
 
             for (const [fullText, shortText] of rules) {
@@ -610,7 +599,7 @@
         function updateDashboard(data) {
             if (!data) return;
 
-            const isTimed = (data.type === 'plank' || data.type === 'side_plank');
+            const isTimed = false;
 
             if (isTimed) {
                 let timeLeft = Math.max(0, Math.ceil(data.target - data.counter));
