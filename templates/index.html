@@ -122,6 +122,7 @@
                 <span id="exercise_title">等待開始...</span>
                 <div>
                     <button onclick="replayVideo()" style="background: #2196F3; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">重看教學 (Replay)</button>
+                    <button onclick="toggleSkeleton()" id="skeleton_toggle" style="background: #9C27B0; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">骨架：開</button>
                     <button onclick="nextExercise(true)" style="background: #FF5722; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">跳過 (Skip)</button>
                     <button onclick="abortCircuit()" style="background: #E91E63; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">放棄 (Quit)</button>
                 </div>
@@ -229,11 +230,26 @@
         let lastSpokenText = '';
         let lastSpeakTime = 0;
         let speechUnlocked = false;
+        let skeletonEnabled = true;
 
         function toggleVoice() {
             voiceEnabled = !voiceEnabled;
             const btn = document.getElementById('voice_toggle');
             btn.textContent = voiceEnabled ? '🔊 語音：開' : '🔇 語音：關';
+        }
+
+        function toggleSkeleton() {
+            skeletonEnabled = !skeletonEnabled;
+
+            const btn = document.getElementById('skeleton_toggle');
+            btn.textContent = skeletonEnabled ? '骨架：開' : '骨架：關';
+
+            if (!skeletonEnabled) {
+                clearSkeleton();
+                skeletonCanvas.style.display = 'none';
+            } else {
+                skeletonCanvas.style.display = 'block';
+            }
         }
 
         function unlockSpeech() {
@@ -461,6 +477,10 @@
                 return;
             }
 
+            skeletonEnabled = true;
+            document.getElementById('skeleton_toggle').textContent = '骨架：開';
+            skeletonCanvas.style.display = 'block';
+
             userWeight = parseFloat(inputWeight);
 
             document.getElementById('weight_modal').style.display = 'none';
@@ -526,6 +546,11 @@
         }
 
         function drawSkeleton(landmarks) {
+            if (!skeletonEnabled) {
+                clearSkeleton();
+                return;
+            }
+
             resizeSkeletonCanvas();
 
             skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
@@ -562,6 +587,7 @@
         }
 
         function clearSkeleton() {
+            if (!skeletonCanvas || !skeletonCtx) return;
             skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
         }
 
