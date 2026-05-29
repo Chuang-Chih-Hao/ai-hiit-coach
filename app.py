@@ -703,7 +703,7 @@ def get_ai_feedback():  # AI 教練評論 API 處理函式
         state = get_user_state()  # 取得訓練狀態
         start_time = state.get('start_time')  # 取得訓練開始時間
         end_time = state.get('end_time') or time.time()  # 取得訓練結束時間（若無則用當前時間）
-        total_calories = float(state.get('total_calories', 0.0))  # 取得累計卡路里
+        total_calories = float(data.get('total_calories', state.get('total_calories', 0.0)))
         level = state.get('level', 'beginner')  # 取得訓練強度
 
     # 計算訓練時長
