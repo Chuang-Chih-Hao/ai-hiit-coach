@@ -138,7 +138,9 @@
             <div id="yt_player_container">
                 <div id="yt_player"></div>
             </div>
-            <div id="skip_overlay">按下鍵盤 <b>[T]</b> 鍵跳過教學</div>
+            <div id="skip_overlay" onclick="skipTeachingVideo()">
+                按下鍵盤 <b>[T]</b> 鍵跳過教學，或點擊這裡跳過
+            </div>
         </div>
 
         <div id="dashboard">
@@ -231,6 +233,7 @@
         let lastSpeakTime = 0;
         let speechUnlocked = false;
         let skeletonEnabled = true;
+        let teachingMonitorInterval = null;
 
         function toggleVoice() {
             voiceEnabled = !voiceEnabled;
@@ -391,14 +394,64 @@
         }
 
         function onPlayerStateChange(event) {
-            if (event.data == YT.PlayerState.ENDED) startDetection();
-        }
-
-        document.addEventListener('keydown', function(event) {
-            if ((event.key === 't' || event.key === 'T') && isCircuitRunning && document.getElementById('yt_player_container').style.display === 'block') {
+            if (
+                event.data === YT.PlayerState.ENDED &&
+                isCircuitRunning &&
+                document.getElementById('yt_player_container').style.display === 'block'
+            ) {
                 startDetection();
             }
-        });
+        }
+
+        function skipTeachingVideo() {
+            if (!isCircuitRunning) return;
+            if (document.getElementById('yt_player_container').style.display !== 'block') return;
+
+            startDetection();
+        }
+
+        function startTeachingMonitor() {
+            stopTeachingMonitor();
+
+            teachingMonitorInterval = setInterval(() => {
+                if (!isCircuitRunning) return;
+                if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+                if (document.getElementById('yt_player_container').style.display !== 'block') return;
+
+                const state = ytPlayer.getPlayerState();
+
+                if (state === YT.PlayerState.ENDED) {
+                    startDetection();
+                    return;
+                }
+
+                // 備援：有些瀏覽器不會穩定觸發 ENDED 事件，所以用時間判斷
+                if (
+                    typeof ytPlayer.getDuration === 'function' &&
+                    typeof ytPlayer.getCurrentTime === 'function'
+                ) {
+                    const duration = ytPlayer.getDuration();
+                    const current = ytPlayer.getCurrentTime();
+
+                    if (duration > 0 && current >= duration - 0.5) {
+                        startDetection();
+                    }
+                }
+            }, 800);
+        }
+
+        function stopTeachingMonitor() {
+            if (teachingMonitorInterval) {
+                clearInterval(teachingMonitorInterval);
+                teachingMonitorInterval = null;
+            }
+        }
+
+        window.addEventListener('keydown', function(event) {
+            if ((event.key === 't' || event.key === 'T') && isCircuitRunning) {
+            skipTeachingVideo();
+            }   
+        }, true);
 
         async function loadCameraOptions() {
             const select = document.getElementById('camera_select');
@@ -517,7 +570,82 @@
 
             if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
                 ytPlayer.loadVideoById(ex.yt);
+                startTeachingMonitor();
             }
+        }
+
+        function replayVideo() {
+            if (!isCircuitRunning) return;
+
+            isReplaying = true;
+            stopFrameLoop();
+
+            hiitFetch('/pause_exercise', { method: 'POST' }).then(() => {
+                video.style.opacity = '0';
+                video.style.position = 'absolute';
+                video.style.zIndex = '-1';
+
+                document.getElementById('yt_player_container').style.display = 'block';
+                document.getElementById('skip_overlay').style.display = 'block';
+
+                const ex = exercises[currentIndex];
+
+                if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                    ytPlayer.loadVideoById(ex.yt);
+                    startTeachingMonitor();
+                }
+            });
+        }
+
+        function startDetection() {
+            stopTeachingMonitor();
+
+            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+                ytPlayer.stopVideo();
+            }
+
+            document.getElementById('yt_player_container').style.display = 'none';
+            document.getElementById('skip_overlay').style.display = 'none';
+            speakText('開始偵測', true);
+
+            video.style.opacity = '1';
+            video.style.position = 'relative';
+            video.style.zIndex = '1';
+
+            if (isReplaying) {
+                hiitFetch('/resume_exercise', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        isReplaying = false;
+                        isTransitioning = false;
+                        updateDashboard(data);
+                        startFrameLoop();
+                    });
+            } else {
+                const level = document.getElementById('exercise_level').value;
+
+                hiitFetch('/start_exercise', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: exercises[currentIndex].id,
+                        level: level,
+                        weight: userWeight
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    isTransitioning = false;
+                    updateDashboard(data);
+                    startFrameLoop();
+                });
+            }
+        }
+
+        function startFrameLoop() {
+            stopFrameLoop();
+            sendFrame();
+            updateInterval = setInterval(sendFrame, 400);
         }
 
         function stopFrameLoop() {
@@ -680,6 +808,7 @@
                 isCircuitRunning = false;
                 wasAborted = true;
                 stopFrameLoop();
+                stopTeachingMonitor();
                 isTransitioning = false;
 
                 if (ytPlayer && typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
@@ -697,6 +826,7 @@
         function finishCircuit() {
             isCircuitRunning = false;
             stopFrameLoop();
+            stopTeachingMonitor();
 
             document.getElementById('circuit_controls').style.display = 'none';
             document.getElementById('settings_bar').style.display = 'flex';
