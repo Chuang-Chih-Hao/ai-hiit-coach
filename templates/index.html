@@ -31,10 +31,11 @@
         
         #skeleton_canvas {
             position: absolute;
+            top: 0;
+            left: 0;
             z-index: 2;
             pointer-events: none;
-            transform: scaleX(-1);
-            }
+        }
 
         #camera_status {
             position: absolute;
@@ -485,6 +486,7 @@
             speakText(`下一項，${ex.name}`, true);
 
             stopFrameLoop();
+            clearSkeleton();
 
             video.style.opacity = '0';
             video.style.position = 'absolute';
@@ -498,71 +500,10 @@
             }
         }
 
-        function replayVideo() {
-            if (!isCircuitRunning) return;
-            isReplaying = true;
-            stopFrameLoop();
-
-            hiitFetch('/pause_exercise', { method: 'POST' }).then(() => {
-                video.style.opacity = '0';
-                video.style.position = 'absolute';
-                video.style.zIndex = '-1';
-
-                document.getElementById('yt_player_container').style.display = 'block';
-                document.getElementById('skip_overlay').style.display = 'block';
-
-                const ex = exercises[currentIndex];
-                if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                    ytPlayer.loadVideoById(ex.yt);
-                }
-            });
-        }
-
-        function startDetection() {
-            if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
-                ytPlayer.stopVideo();
-            }
-
-            document.getElementById('yt_player_container').style.display = 'none';
-            document.getElementById('skip_overlay').style.display = 'none';
-            speakText('開始偵測，請進入鏡頭範圍。', true);
-
-            video.style.opacity = '1';
-            video.style.position = 'relative';
-            video.style.zIndex = '1';
-
-            if (isReplaying) {
-                hiitFetch('/resume_exercise', { method: 'POST' }).then(res => res.json()).then(data => {
-                    isReplaying = false;
-                    isTransitioning = false;
-                    updateDashboard(data);
-                    startFrameLoop();
-                });
-            } else {
-                const level = document.getElementById('exercise_level').value;
-                hiitFetch('/start_exercise', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: exercises[currentIndex].id, level: level, weight: userWeight })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    isTransitioning = false;
-                    updateDashboard(data);
-                    startFrameLoop();
-                });
-            }
-        }
-
-        function startFrameLoop() {
-            stopFrameLoop();
-            sendFrame();
-            updateInterval = setInterval(sendFrame, 400);
-        }
-
         function stopFrameLoop() {
             if (updateInterval) clearInterval(updateInterval);
             updateInterval = null;
+            clearSkeleton();
         }
 
         const POSE_CONNECTIONS = [
@@ -649,6 +590,7 @@
 
                 const data = await res.json();
                 updateDashboard(data);
+                drawSkeleton(data.landmarks);
 
                 if (data.counter >= data.target && data.is_started && !isTransitioning) {
                     isTransitioning = true;
