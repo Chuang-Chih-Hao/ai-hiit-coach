@@ -1,39 +1,895 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 徒手 HIIT 巡迴健身教練</title>
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>
+   AI 徒手 HIIT 巡迴健身教練
+  </title>
   <style>
-    body{margin:0;padding:0;background:#1a1a1a;color:white;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}#app_container{display:flex;flex-direction:column;height:100vh;overflow:hidden}header{background:#333;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.5);z-index:100}h1{margin:0;font-size:24px;color:#4CAF50;white-space:nowrap}#settings_bar{display:flex;gap:15px;align-items:center}select,button{padding:8px 12px;font-size:16px;border-radius:5px;border:none;background:#444;color:white;outline:none}button{background:#4CAF50;cursor:pointer;font-weight:bold;transition:.3s}button:hover{background:#45a049}#main_display{flex:1;position:relative;background:#000;display:flex;justify-content:center;align-items:center;overflow:hidden}#camera_feed{width:100%;height:100%;object-fit:contain;position:relative;z-index:1;transition:opacity .3s;transform:scaleX(-1);background:#000}#skeleton_canvas{position:absolute;top:0;left:0;z-index:2;pointer-events:none}#camera_status{position:absolute;top:16px;left:16px;z-index:5;background:rgba(0,0,0,.65);border:1px solid rgba(76,175,80,.65);border-radius:8px;padding:8px 12px;color:#ddd;font-size:14px}#yt_player_container{position:absolute;top:0;left:0;width:100%;height:100%;display:none;z-index:10;background:#000}#skip_overlay{position:absolute;bottom:80px;right:30px;background:rgba(0,0,0,.7);padding:10px 20px;border-radius:8px;font-size:18px;z-index:20;display:none;border:1px solid #4CAF50;cursor:pointer}#dashboard{background:#222;padding:20px;display:flex;justify-content:space-around;align-items:center;border-top:2px solid #4CAF50;z-index:100}.data-box{text-align:center}.data-value{font-size:36px;font-weight:bold;color:white;text-shadow:0 0 10px rgba(255,255,255,.2)}.data-label{font-size:14px;color:#aaa;margin-top:5px;text-transform:uppercase;letter-spacing:1px}#hint_box{flex:2;text-align:left;padding-left:30px;border-left:2px solid #444}#hint{font-size:24px;color:#FFD700;font-weight:bold;margin:0}#circuit_controls{display:none;flex:1;justify-content:space-between;align-items:center;margin-left:40px}#exercise_title{font-size:20px;color:#fff;background:#444;padding:5px 15px;border-radius:20px}.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:200}#ai_modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;padding:30px;border-radius:15px;z-index:300;text-align:center;box-shadow:0 0 30px rgba(76,175,80,.5);border:2px solid #4CAF50;width:85%;max-width:450px;max-height:75vh;flex-direction:column}#ai_feedback_text{font-size:16px;line-height:1.6;color:#ddd;text-align:justify;margin-top:15px;margin-bottom:15px;overflow-y:auto;padding-right:15px;flex-grow:1;min-height:0}#ai_feedback_text::-webkit-scrollbar{width:8px}#ai_feedback_text::-webkit-scrollbar-track{background:#333;border-radius:4px}#ai_feedback_text::-webkit-scrollbar-thumb{background:#4CAF50;border-radius:4px}.close-btn{position:absolute;top:15px;right:20px;font-size:28px;color:#aaa;cursor:pointer;transition:.3s;line-height:1}.close-btn:hover{color:#fff;transform:scale(1.1)}#weight_modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;padding:40px;border-radius:15px;z-index:300;text-align:center;box-shadow:0 0 30px rgba(0,0,0,.9);border:2px solid #444}@media(max-width:900px){header{flex-direction:column;gap:12px;align-items:stretch}#settings_bar,#circuit_controls{margin-left:0;flex-wrap:wrap}#dashboard{flex-direction:column;gap:12px;align-items:stretch}#hint_box{border-left:none;border-top:2px solid #444;padding-left:0;padding-top:12px}}
+   body {
+   margin: 0;
+   padding: 0;
+   background-color: #1a1a1a;
+   color: white;
+   font-family: 'Segoe UI',  Tahoma,  Geneva,  Verdana,  sans-serif;
+} #app_container {
+   display: flex;
+   flex-direction: column;
+   height: 100vh;
+   overflow: hidden;
+} header {
+   background-color: #333;
+   padding: 15px 20px;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+   z-index: 100;
+} h1 {
+   margin: 0;
+   font-size: 24px;
+   color: #4CAF50;
+   white-space: nowrap;
+} #settings_bar {
+   display: flex;
+   gap: 15px;
+   align-items: center;
+} select,  button {
+   padding: 8px 12px;
+   font-size: 16px;
+   border-radius: 5px;
+   border: none;
+   background: #444;
+   color: white;
+   outline: none;
+} button {
+   background-color: #4CAF50;
+   cursor: pointer;
+   font-weight: bold;
+   transition: 0.3s;
+} button:hover {
+   background-color: #45a049;
+} #main_display {
+   flex: 1;
+   position: relative;
+   background: #000;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   overflow: hidden;
+} #camera_feed {
+   width: 100%;
+   height: 100%;
+   object-fit: contain;
+   position: relative;
+   z-index: 1;
+   transition: opacity 0.3s;
+   transform: scaleX(-1);
+   background: #000;
+} #skeleton_canvas {
+   position: absolute;
+   top: 0;
+   left: 0;
+   z-index: 2;
+   pointer-events: none;
+} #camera_status {
+   position: absolute;
+   top: 16px;
+   left: 16px;
+   z-index: 5;
+   background: rgba(0, 0, 0, 0.65);
+   border: 1px solid rgba(76, 175, 80, 0.65);
+   border-radius: 8px;
+   padding: 8px 12px;
+   color: #ddd;
+   font-size: 14px;
+} #yt_player_container {
+   position: absolute;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   display: none;
+   z-index: 10;
+   background: #000;
+} #skip_overlay {
+   position: absolute;
+   bottom: 80px;
+   right: 30px;
+   background: rgba(0, 0, 0, 0.7);
+   padding: 10px 20px;
+   border-radius: 8px;
+   font-size: 18px;
+   z-index: 20;
+   display: none;
+   border: 1px solid #4CAF50;
+} #dashboard {
+   background-color: #222;
+   padding: 20px;
+   display: flex;
+   justify-content: space-around;
+   align-items: center;
+   border-top: 2px solid #4CAF50;
+   z-index: 100;
+} .data-box {
+   text-align: center;
+} .data-value {
+   font-size: 36px;
+   font-weight: bold;
+   color: white;
+   text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+} .data-label {
+   font-size: 14px;
+   color: #aaa;
+   margin-top: 5px;
+   text-transform: uppercase;
+   letter-spacing: 1px;
+} #hint_box {
+   flex: 2;
+   text-align: left;
+   padding-left: 30px;
+   border-left: 2px solid #444;
+} #hint {
+   font-size: 24px;
+   color: #FFD700;
+   font-weight: bold;
+   margin: 0;
+} #circuit_controls {
+   display: none;
+   flex: 1;
+   justify-content: space-between;
+   align-items: center;
+   margin-left: 40px;
+} #exercise_title {
+   font-size: 20px;
+   color: #fff;
+   background: #444;
+   padding: 5px 15px;
+   border-radius: 20px;
+} .modal-overlay {
+   display: none;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background: rgba(0, 0, 0, 0.8);
+   z-index: 200;
+} #ai_modal {
+   display: none;
+   position: fixed;
+   top: 50%;
+   left: 50%;
+   transform: translate(-50%,  -50%);
+   background: #222;
+   padding: 30px;
+   border-radius: 15px;
+   z-index: 300;
+   text-align: center;
+   box-shadow: 0 0 30px rgba(76,  175,  80,  0.5);
+   border: 2px solid #4CAF50;
+   width: 85%;
+   max-width: 450px;
+   max-height: 75vh;
+   flex-direction: column;
+} #ai_feedback_text {
+   font-size: 16px;
+   line-height: 1.6;
+   color: #ddd;
+   text-align: justify;
+   margin-top: 15px;
+   margin-bottom: 15px;
+   overflow-y: auto;
+   padding-right: 15px;
+   flex-grow: 1;
+   min-height: 0;
+} #ai_feedback_text::-webkit-scrollbar {
+   width: 8px;
+} #ai_feedback_text::-webkit-scrollbar-track {
+   background: #333;
+   border-radius: 4px;
+} #ai_feedback_text::-webkit-scrollbar-thumb {
+   background: #4CAF50;
+   border-radius: 4px;
+} .close-btn {
+   position: absolute;
+   top: 15px;
+   right: 20px;
+   font-size: 28px;
+   color: #aaa;
+   cursor: pointer;
+   transition: 0.3s;
+   line-height: 1;
+} .close-btn:hover {
+   color: #fff;
+   transform: scale(1.1);
+} #weight_modal {
+   display: none;
+   position: fixed;
+   top: 50%;
+   left: 50%;
+   transform: translate(-50%,  -50%);
+   background: #222;
+   padding: 40px;
+   border-radius: 15px;
+   z-index: 300;
+   text-align: center;
+   box-shadow: 0 0 30px rgba(0,  0,  0,  0.9);
+   border: 2px solid #444;
+} @media (max-width: 900px) {
+   header {
+     flex-direction: column;
+     gap: 12px;
+     align-items: stretch;
+  } #settings_bar,  #circuit_controls {
+     margin-left: 0;
+     flex-wrap: wrap;
+  } #dashboard {
+     flex-direction: column;
+     gap: 12px;
+     align-items: stretch;
+  } #hint_box {
+     border-left: none;
+     border-top: 2px solid #444;
+     padding-left: 0;
+     padding-top: 12px;
+  }
+}
   </style>
-</head>
-<body>
-<div id="app_container"><header><h1>⚡HIIT 巡迴教練</h1><div id="settings_bar"><select id="camera_select"></select><select id="exercise_level"><option value="beginner">🟢 初階</option><option value="advanced">🔴 進階</option></select><button onclick="toggleVoice()" id="voice_toggle" style="background:#7952B3;">🔊 語音：開</button><button onclick="startCircuit()">開始巡迴訓練</button></div><div id="circuit_controls"><span id="exercise_title">等待開始...</span><div><button onclick="replayVideo()" style="background:#2196F3;margin-right:10px;box-shadow:0 4px 6px rgba(0,0,0,.5);">重看教學 (Replay)</button><button onclick="toggleSkeleton()" id="skeleton_toggle" style="background:#9C27B0;margin-right:10px;box-shadow:0 4px 6px rgba(0,0,0,.5);">骨架：開</button><button onclick="nextExercise(true)" style="background:#FF5722;margin-right:10px;box-shadow:0 4px 6px rgba(0,0,0,.5);">跳過 (Skip)</button><button onclick="abortCircuit()" style="background:#E91E63;box-shadow:0 4px 6px rgba(0,0,0,.5);">放棄 (Quit)</button></div></div></header><div id="main_display"><video id="camera_feed" autoplay playsinline muted></video><canvas id="skeleton_canvas"></canvas><canvas id="capture_canvas" style="display:none;"></canvas><div id="camera_status">正在初始化攝像頭...</div><div id="yt_player_container"><div id="yt_player"></div></div><div id="skip_overlay" onclick="skipTeachingVideo()">按下鍵盤 <b>[T]</b> 鍵跳過教學，或點擊這裡跳過</div></div><div id="dashboard"><div class="data-box"><div class="data-value"><span id="count">0</span><span id="target" style="font-size:24px;color:#888;"> / 0</span></div><div class="data-label" id="progress_label">完成進度 (次數)</div></div><div class="data-box" style="border-left:2px solid #444;padding-left:30px;"><div class="data-value"><span id="total_calories">0.00</span> kcal</div><div class="data-label">本次巡迴累計消耗</div></div><div id="hint_box"><div class="data-label" style="margin-bottom:5px;">動作指導</div><p id="hint">請允許瀏覽器攝像頭權限並點擊開始</p></div></div></div>
-<div class="modal-overlay" id="modal_overlay"></div><div id="ai_modal"><span class="close-btn" onclick="location.reload()">&times;</span><h2 style="margin-top:5px;margin-bottom:10px;font-size:22px;">🤖 AI 巡迴總結報告</h2><div id="ai_feedback_text">正在生成您的專屬分析報告，請稍候...</div><button style="margin-top:15px;width:100%;background:#4CAF50;color:white;border:none;padding:12px;border-radius:10px;font-size:18px;cursor:pointer;flex-shrink:0;" onclick="location.reload()">完成並關閉</button></div>
-<div id="weight_modal"><h2 style="color:#FFD700;margin-bottom:20px;">開始前，請輸入您的體重 (kg)</h2><p style="color:#aaa;margin-bottom:20px;">我們需要您的體重來估算卡路里消耗量</p><input type="number" id="user_weight_input" placeholder="例如: 65" min="30" max="200" style="font-size:32px;padding:10px;width:180px;text-align:center;border-radius:8px;border:none;margin-bottom:30px;"><br><button onclick="confirmWeightAndStart()" style="background:#4CAF50;color:white;font-size:22px;padding:12px 30px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">確認並開始</button><button onclick="document.getElementById('weight_modal').style.display='none';document.getElementById('modal_overlay').style.display='none';" style="background:#555;color:white;font-size:22px;padding:12px 30px;border:none;border-radius:8px;cursor:pointer;margin-left:15px;">取消</button></div>
-<script>
-const HIIT_CLIENT_ID_KEY='hiit_client_id';function getHiitClientId(){let id=localStorage.getItem(HIIT_CLIENT_ID_KEY);if(!id){id=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'client-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem(HIIT_CLIENT_ID_KEY,id)}return id}function hiitFetch(url,options={}){const headers=options.headers||{};headers['X-Client-ID']=getHiitClientId();return fetch(url,{...options,headers})}
-const exercises=[{id:'jumping_jacks',name:'1. 開合跳',yt:'qz9MFrQL3IA'},{id:'wall_sit',name:'2. 靠牆屈膝',yt:'3tXV82N_-xA'},{id:'pushup',name:'3. 伏地挺身',yt:'IODxDxX7oi4'},{id:'sit_up',name:'4. 仰臥起坐',yt:'1fbU_MkV7NE'},{id:'mountain_climber',name:'5. 計時登山者',yt:'kLh-uczlPLg'},{id:'squat',name:'6. 深蹲',yt:'CJVQJHpRG70'},{id:'triceps_dip',name:'7. 椅子三頭肌撐體',yt:'5CgfgO__oGo'},{id:'high_knees',name:'8. 原地抬膝',yt:'vpCoRIV5L9M'},{id:'lunge',name:'9. 弓步深蹲',yt:'tQNktxPkSeE'},{id:'pushup_rotation',name:'10. 掌上壓後轉身',yt:'Ohz9RWkCvH0'}];
-const LOCAL_TARGETS={beginner:{jumping_jacks:15,wall_sit:12,pushup:10,sit_up:15,mountain_climber:30,squat:15,triceps_dip:12,high_knees:20,lunge:16,pushup_rotation:10},advanced:{jumping_jacks:30,wall_sit:24,pushup:20,sit_up:30,mountain_climber:60,squat:30,triceps_dip:20,high_knees:40,lunge:30,pushup_rotation:20}};const LOCAL_CALORIES={jumping_jacks:.15,wall_sit:.35,pushup:.45,sit_up:.15,mountain_climber:.15,squat:.40,triceps_dip:.30,high_knees:.18,lunge:.38,pushup_rotation:.55};
-const POSE_CONNECTIONS=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];const IMPORTANT_POINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
-let currentIndex=0,ytPlayer,updateInterval,isCircuitRunning=false,isTransitioning=false,userWeight=65,isReplaying=false,mediaStream=null,skippedExercises=0,wasAborted=false,voiceEnabled=true,lastSpokenText='',lastSpeakTime=0,speechUnlocked=false,skeletonEnabled=true,teachingMonitorInterval=null;let PoseLandmarkerClass=null,FilesetResolverClass=null,poseLandmarker=null,localPoseReady=false,localPoseLoopId=null,lastVideoTime=-1,lastPoseProcessMs=0,localExerciseState=null,circuitTotalCalories=0;
-const video=document.getElementById('camera_feed'),canvas=document.getElementById('capture_canvas'),skeletonCanvas=document.getElementById('skeleton_canvas'),skeletonCtx=skeletonCanvas.getContext('2d'),cameraStatus=document.getElementById('camera_status');
-function toggleVoice(){voiceEnabled=!voiceEnabled;document.getElementById('voice_toggle').textContent=voiceEnabled?'🔊 語音：開':'🔇 語音：關'}function toggleSkeleton(){skeletonEnabled=!skeletonEnabled;const b=document.getElementById('skeleton_toggle');b.textContent=skeletonEnabled?'骨架：開':'骨架：關';if(!skeletonEnabled){clearSkeleton();skeletonCanvas.style.display='none'}else{skeletonCanvas.style.display='block'}}function unlockSpeech(){if(!('speechSynthesis'in window))return;speechUnlocked=true;window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))}
-function getShortSpeechText(text){if(!text)return'';let speech=text.replace(/[🟢⚠️⏱️🎉🔥💪✅❌]/g,'');const rules=[['準備動作完成：雙手放下、雙腳併攏，接著向外跳開','手腳跳開'],['手舉過肩、雙腳打開標準；下一步請收回手腳','手腳收回'],['漂亮！手腳打開到位，回到併攏後繼續下一下','繼續'],['開合跳要同時完成：雙手舉過肩，雙腳向外打開','手腳打開'],['請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度','下蹲'],['蹲姿到位！保持膝蓋約 90 度，再站起完成一次','站起'],['調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高','蹲低'],['請確保全身入鏡，並呈現趴下撐體姿勢','全身入鏡'],['身體保持一直線，接著彎曲手肘下壓','下壓'],['下壓到位！核心收緊，現在推起來','推起'],['漂亮！手臂已撐直，完成一次伏地挺身','完成一次'],['持續動作：下壓時手肘小於 90 度，撐起時手臂打直','做完整'],['調整位置：確保全身入鏡（肩、腰、膝蓋）','全身入鏡'],['請躺平！不要站著彎腰','躺平'],['起身到位！現在慢慢躺回地面，躺下後才會計數','躺回'],['已起身到位，請躺回地面完成這一下','躺回'],['完成一次！下背貼地後，再準備下一次起身','完成一次'],['繼續動作：起身靠近膝蓋後，再躺回地面才算一次','起身再躺回'],['請趴下呈現伏地挺身預備姿勢','趴下準備'],['保持伏地挺身預備姿勢，左右膝輪流往胸口收','收膝'],['膝蓋再往胸口靠近一點，角度不足還不會計數','再靠近'],['左腳漂亮！','左腳'],['右腳漂亮！','右腳'],['準備深蹲：雙腳站穩，臀部往後往下坐','深蹲'],['深蹲深度到位！保持胸口打開，現在站起來','站起'],['再蹲低一點，膝蓋角度小於 90 度後再站起才會計數','蹲低'],['推起來！','推起'],['漂亮！手臂撐直完成一次，接著慢慢下壓','完成一次'],['手掌撐穩椅緣，身體靠近椅子，準備往下沉','下沉'],['繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起','下推'],['做得好！膝蓋盡量抬高至腰部高度','抬高'],['背部打直，核心收緊，左右腳快速交替高抬','快抬'],['繼續保持節奏，膝蓋抬高到位才會計數','保持節奏'],['站姿準備完成：向前或向後跨一步，身體垂直下沉','弓步'],['弓步深度到位，完成一次！推回站姿後換腳','換腳'],['下蹲到位！前後腳膝蓋都彎曲，保持身體穩定','站回'],['弓步再下沉一點，前後膝都接近彎曲後才會計數','下沉'],['請保持背部與腿部呈一直線','打直'],['推起並轉身舉手！','轉身'],['完美轉身！換邊繼續','換邊']];for(const [full,short]of rules){if(speech.includes(full))return short}return speech.length>8?speech.slice(0,8):speech}
-function speakText(text,force=false){if(!voiceEnabled||!speechUnlocked||!text||!('speechSynthesis'in window))return;const now=Date.now();if(!force&&text===lastSpokenText)return;if(!force&&now-lastSpeakTime<3500)return;lastSpokenText=text;lastSpeakTime=now;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='zh-TW';u.rate=1.25;u.pitch=1;u.volume=1;window.speechSynthesis.speak(u)}
-async function initLocalPoseLandmarker(){if(localPoseReady&&poseLandmarker)return;cameraStatus.textContent='正在載入本機 AI 姿勢模型...';if(!PoseLandmarkerClass||!FilesetResolverClass){const m=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest');PoseLandmarkerClass=m.PoseLandmarker;FilesetResolverClass=m.FilesetResolver}const vision=await FilesetResolverClass.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm');const opts={baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',delegate:'GPU'},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:.5,minPosePresenceConfidence:.5,minTrackingConfidence:.5,outputSegmentationMasks:false};try{poseLandmarker=await PoseLandmarkerClass.createFromOptions(vision,opts)}catch(e){opts.baseOptions.delegate='CPU';poseLandmarker=await PoseLandmarkerClass.createFromOptions(vision,opts)}localPoseReady=true;cameraStatus.textContent='本機 AI 姿勢模型已載入'}
-var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';var firstScriptTag=document.getElementsByTagName('script')[0];firstScriptTag.parentNode.insertBefore(tag,firstScriptTag);function onYouTubeIframeAPIReady(){ytPlayer=new YT.Player('yt_player',{height:'100%',width:'100%',playerVars:{autoplay:1,controls:1,rel:0},events:{onStateChange:onPlayerStateChange}})}function onPlayerStateChange(e){if(e.data===YT.PlayerState.ENDED&&isCircuitRunning&&document.getElementById('yt_player_container').style.display==='block')startDetection()}function skipTeachingVideo(){if(!isCircuitRunning)return;if(document.getElementById('yt_player_container').style.display!=='block')return;startDetection()}function startTeachingMonitor(){stopTeachingMonitor();teachingMonitorInterval=setInterval(()=>{if(!isCircuitRunning||!ytPlayer||typeof ytPlayer.getPlayerState!=='function'||document.getElementById('yt_player_container').style.display!=='block')return;const s=ytPlayer.getPlayerState();if(s===YT.PlayerState.ENDED){startDetection();return}if(typeof ytPlayer.getDuration==='function'&&typeof ytPlayer.getCurrentTime==='function'){const d=ytPlayer.getDuration(),c=ytPlayer.getCurrentTime();if(d>0&&c>=d-.5)startDetection()}},800)}function stopTeachingMonitor(){if(teachingMonitorInterval){clearInterval(teachingMonitorInterval);teachingMonitorInterval=null}}window.addEventListener('keydown',e=>{if((e.key==='t'||e.key==='T')&&isCircuitRunning)skipTeachingVideo()},true);
-async function loadCameraOptions(){const select=document.getElementById('camera_select');select.innerHTML='<option value="">🎥 預設攝像頭</option>';try{await startBrowserCamera();const devices=await navigator.mediaDevices.enumerateDevices();const cameras=devices.filter(d=>d.kind==='videoinput');select.innerHTML='';cameras.forEach((cam,i)=>{const opt=document.createElement('option');opt.value=cam.deviceId;opt.textContent=`🎥 ${cam.label||`攝像頭 ${i+1}`}`;select.appendChild(opt)});if(cameras.length===0){select.innerHTML='<option value="">未偵測到攝像頭</option>';cameraStatus.textContent='未偵測到攝像頭，請檢查瀏覽器權限。'}}catch(err){cameraStatus.textContent='攝像頭啟動失敗：'+err.message;document.getElementById('hint').textContent='請允許瀏覽器攝像頭權限，Render 網站需使用 HTTPS。'}select.onchange=async e=>await startBrowserCamera(e.target.value)}async function startBrowserCamera(deviceId=null){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('此瀏覽器不支援 getUserMedia');if(mediaStream)mediaStream.getTracks().forEach(t=>t.stop());const constraints={video:{width:{ideal:960},height:{ideal:540},facingMode:'user'},audio:false};if(deviceId){constraints.video.deviceId={exact:deviceId};delete constraints.video.facingMode}mediaStream=await navigator.mediaDevices.getUserMedia(constraints);video.srcObject=mediaStream;await video.play();cameraStatus.textContent='攝像頭已啟動：畫面由瀏覽器本機提供'}loadCameraOptions();
-function startCircuit(){document.getElementById('modal_overlay').style.display='block';document.getElementById('weight_modal').style.display='block';document.getElementById('user_weight_input').focus()}function confirmWeightAndStart(){unlockSpeech();const input=document.getElementById('user_weight_input').value;if(!input||input<=0){alert('請輸入有效的體重！');return}skeletonEnabled=true;document.getElementById('skeleton_toggle').textContent='骨架：開';skeletonCanvas.style.display='block';userWeight=parseFloat(input);currentIndex=0;circuitTotalCalories=0;localExerciseState=null;skippedExercises=0;wasAborted=false;isCircuitRunning=true;isTransitioning=false;isReplaying=false;document.getElementById('count').textContent='0';document.getElementById('target').textContent=' / 0';document.getElementById('total_calories').textContent='0.00';document.getElementById('weight_modal').style.display='none';document.getElementById('modal_overlay').style.display='none';document.getElementById('settings_bar').style.display='none';document.getElementById('circuit_controls').style.display='flex';runExerciseStep()}function runExerciseStep(){if(currentIndex>=exercises.length){finishCircuit();return}const ex=exercises[currentIndex];document.getElementById('exercise_title').textContent=ex.name;document.getElementById('hint').textContent='正在播放教學，請準備...';speakText(`下一項，${ex.name}`,true);stopFrameLoop();clearSkeleton();video.style.opacity='0';video.style.position='absolute';video.style.zIndex='-1';document.getElementById('yt_player_container').style.display='block';document.getElementById('skip_overlay').style.display='block';if(ytPlayer&&typeof ytPlayer.loadVideoById==='function'){ytPlayer.loadVideoById(ex.yt);startTeachingMonitor()}}
-function replayVideo(){if(!isCircuitRunning)return;isReplaying=true;stopFrameLoop();video.style.opacity='0';video.style.position='absolute';video.style.zIndex='-1';document.getElementById('yt_player_container').style.display='block';document.getElementById('skip_overlay').style.display='block';const ex=exercises[currentIndex];if(ytPlayer&&typeof ytPlayer.loadVideoById==='function'){ytPlayer.loadVideoById(ex.yt);startTeachingMonitor()}}
-async function startDetection(){stopTeachingMonitor();if(ytPlayer&&typeof ytPlayer.stopVideo==='function')ytPlayer.stopVideo();document.getElementById('yt_player_container').style.display='none';document.getElementById('skip_overlay').style.display='none';speakText('開始偵測',true);video.style.opacity='1';video.style.position='relative';video.style.zIndex='1';try{await initLocalPoseLandmarker()}catch(err){document.getElementById('hint').textContent='本機 AI 模型載入失敗：'+err.message;cameraStatus.textContent='本機 AI 模型載入失敗';return}if(!isReplaying){const level=document.getElementById('exercise_level').value;const type=exercises[currentIndex].id;localExerciseState=createLocalExerciseState(type,level,userWeight)}isReplaying=false;isTransitioning=false;updateDashboard(localExerciseState);startFrameLoop()}function startFrameLoop(){stopFrameLoop();startLocalPoseLoop()}function stopFrameLoop(){if(updateInterval)clearInterval(updateInterval);updateInterval=null;stopLocalPoseLoop();clearSkeleton()}
-function startLocalPoseLoop(){stopLocalPoseLoop();function loop(){if(!isCircuitRunning||isTransitioning){localPoseLoopId=requestAnimationFrame(loop);return}const now=performance.now();if(now-lastPoseProcessMs>=80&&poseLandmarker&&video.readyState>=2&&video.currentTime!==lastVideoTime){lastPoseProcessMs=now;lastVideoTime=video.currentTime;const result=poseLandmarker.detectForVideo(video,now);if(result.landmarks&&result.landmarks.length>0){const lm=result.landmarks[0];drawSkeleton(lm);const data=analyzeLocalLandmarks(lm);updateDashboard(data);if(data.counter>=data.target&&data.is_started&&!isTransitioning){isTransitioning=true;document.getElementById('count').style.color='#4CAF50';speakText('完成，下一項',true);setTimeout(()=>nextExercise(false),1200)}else if(!isTransitioning){document.getElementById('count').style.color='white'}}else{clearSkeleton();if(localExerciseState){localExerciseState.hint='未偵測到完整人體，請退後一點並保持全身入鏡。';updateDashboard(localExerciseState)}}}localPoseLoopId=requestAnimationFrame(loop)}localPoseLoopId=requestAnimationFrame(loop)}function stopLocalPoseLoop(){if(localPoseLoopId){cancelAnimationFrame(localPoseLoopId);localPoseLoopId=null}}
-function resizeSkeletonCanvas(){const rect=video.getBoundingClientRect();skeletonCanvas.width=rect.width;skeletonCanvas.height=rect.height;skeletonCanvas.style.width=rect.width+'px';skeletonCanvas.style.height=rect.height+'px'}function getVideoDrawArea(){const w=skeletonCanvas.width,h=skeletonCanvas.height;if(!video.videoWidth||!video.videoHeight)return{x:0,y:0,width:w,height:h};const vr=video.videoWidth/video.videoHeight,cr=w/h;if(cr>vr){const dh=h,dw=h*vr;return{x:(w-dw)/2,y:0,width:dw,height:dh}}else{const dw=w,dh=w/vr;return{x:0,y:(h-dh)/2,width:dw,height:dh}}}function drawSkeleton(landmarks){if(!skeletonEnabled){clearSkeleton();return}resizeSkeletonCanvas();skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height);if(!landmarks||!landmarks.length)return;const area=getVideoDrawArea();skeletonCtx.lineWidth=4;skeletonCtx.strokeStyle='#ff1744';skeletonCtx.fillStyle='#ff5252';const sx=p=>area.x+(1-p.x)*area.width,sy=p=>area.y+p.y*area.height;for(const[a,b]of POSE_CONNECTIONS){const p1=landmarks[a],p2=landmarks[b];if(!p1||!p2)continue;if(visibility(p1)<.45||visibility(p2)<.45)continue;skeletonCtx.beginPath();skeletonCtx.moveTo(sx(p1),sy(p1));skeletonCtx.lineTo(sx(p2),sy(p2));skeletonCtx.stroke()}for(const i of IMPORTANT_POINTS){const p=landmarks[i];if(!p||visibility(p)<.45)continue;skeletonCtx.beginPath();skeletonCtx.arc(sx(p),sy(p),6,0,Math.PI*2);skeletonCtx.fill()}}function clearSkeleton(){if(!skeletonCanvas||!skeletonCtx)return;skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height)}
-function createLocalExerciseState(type,level,weight){return{is_started:true,type,level,weight,target:LOCAL_TARGETS[level][type],counter:0,total_calories:circuitTotalCalories,stage:null,hint:'偵測已開始，請進入鏡頭範圍。',last_tick:performance.now()}}function visibility(p){if(!p)return 0;if(typeof p.visibility==='number')return p.visibility;if(typeof p.presence==='number')return p.presence;return 1}function calculateAngle(a,b,c){const ab={x:a.x-b.x,y:a.y-b.y},cb={x:c.x-b.x,y:c.y-b.y};const dot=ab.x*cb.x+ab.y*cb.y,magAB=Math.hypot(ab.x,ab.y),magCB=Math.hypot(cb.x,cb.y);if(magAB===0||magCB===0)return 0;return Math.acos(Math.min(Math.max(dot/(magAB*magCB),-1),1))*180/Math.PI}function addCalories(type,mul,amount=null){const add=amount===null?LOCAL_CALORIES[type]*mul:amount;circuitTotalCalories+=add;localExerciseState.total_calories=circuitTotalCalories}function essentialVisible(points,threshold=.35){return points.every(p=>p&&visibility(p)>=threshold)}
-function analyzeLocalLandmarks(lm){const state=localExerciseState;if(!state)return null;const now=performance.now();state.last_tick=now;const type=state.type,weightMul=state.weight/65;const l_sh=lm[11],r_sh=lm[12],l_el=lm[13],r_el=lm[14],l_wr=lm[15],r_wr=lm[16],l_hip=lm[23],r_hip=lm[24],l_kn=lm[25],r_kn=lm[26],l_an=lm[27],r_an=lm[28];if(!essentialVisible([l_sh,r_sh,l_hip,r_hip],.3)){state.hint='請讓身體完整入鏡';return state}if(type==='jumping_jacks'){const armsUp=l_wr.y<l_sh.y&&r_wr.y<r_sh.y,legsSpread=Math.abs(l_an.x-r_an.x)>.15;if(armsUp&&legsSpread){if(state.stage==='down'){state.counter++;addCalories('jumping_jacks',weightMul);state.hint='漂亮！手腳打開到位，回到併攏後繼續下一下'}else state.hint='手舉過肩、雙腳打開標準；下一步請收回手腳';state.stage='up'}else if(!armsUp&&!legsSpread){state.stage='down';state.hint='準備動作完成：雙手放下、雙腳併攏，接著向外跳開'}else state.hint='開合跳要同時完成：雙手舉過肩，雙腳向外打開'}else if(type==='wall_sit'){const knee=calculateAngle(l_hip,l_kn,l_an),hip=calculateAngle(l_sh,l_hip,l_kn);if(knee>150&&hip>150){if(state.stage==='down'){state.counter++;addCalories('wall_sit',weightMul);state.hint='站起完成一次！下一次請慢慢坐到大腿接近水平'}else state.hint='請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度';state.stage='up'}else if(knee>70&&knee<110&&hip>70&&hip<110){state.stage='down';state.hint='蹲姿到位！保持膝蓋約 90 度，再站起完成一次'}else state.hint='調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高'}else if(type==='pushup'){const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,body=calculateAngle(l_sh,l_hip,l_an);const ok=Math.max(visibility(l_an),visibility(r_an))>.5&&body>140&&Math.abs(l_sh.y-l_hip.y)<.35;if(!ok)state.hint='請確保全身入鏡，並呈現趴下撐體姿勢';else if(avg>150){if(state.stage==='down'){state.counter++;addCalories('pushup',weightMul);state.hint='漂亮！手臂已撐直，完成一次伏地挺身'}else state.hint='身體保持一直線，接著彎曲手肘下壓';state.stage='up'}else if(avg<=90){state.stage='down';state.hint='下壓到位！核心收緊，現在推起來'}else state.hint='持續動作：下壓時手肘小於 90 度，撐起時手臂打直'}else if(type==='sit_up'){if(state.stage===null)state.stage='up';if(!essentialVisible([l_sh,r_sh,l_hip,r_hip,l_kn,r_kn],.3))state.hint='調整位置：確保全身入鏡（肩、腰、膝蓋）';else{const lying=Math.abs(l_hip.y-l_an.y)<.35&&Math.abs(r_hip.y-r_an.y)<.35;if(!lying)state.hint='請躺平！不要站著彎腰';else{const body=Math.min(calculateAngle(l_sh,l_hip,l_kn),calculateAngle(r_sh,r_hip,r_kn)),dist=Math.min(Math.hypot(l_el.x-l_kn.x,l_el.y-l_kn.y),Math.hypot(r_el.x-r_kn.x,r_el.y-r_kn.y));if(body<95&&dist<.22){if(state.stage==='down'){state.stage='up';state.hint='起身到位！現在慢慢躺回地面，躺下後才會計數'}else state.hint='已起身到位，請躺回地面完成這一下'}else if(body>120){if(state.stage==='up'){state.counter++;addCalories('sit_up',weightMul);state.hint='完成一次！下背貼地後，再準備下一次起身'}else state.hint='下背貼地，準備起身';state.stage='down'}else state.hint='繼續動作：起身靠近膝蓋後，再躺回地面才算一次'}}}else if(type==='mountain_climber'){if(!state.stage||typeof state.stage!=='object')state.stage={l:'down',r:'down'};const isPlank=Math.abs(l_sh.y-l_hip.y)<.35&&Math.abs(r_sh.y-r_hip.y)<.35;if(!isPlank)state.hint='請趴下呈現伏地挺身預備姿勢';else{const lang=calculateAngle(l_sh,l_hip,l_kn),rang=calculateAngle(r_sh,r_hip,r_kn);if(lang<100){if(state.stage.l==='down'){state.counter++;addCalories('mountain_climber',weightMul);state.hint='左腳漂亮！'}state.stage.l='up'}else if(lang>120)state.stage.l='down';if(rang<100){if(state.stage.r==='down'){state.counter++;addCalories('mountain_climber',weightMul);state.hint='右腳漂亮！'}state.stage.r='up'}else if(rang>120)state.stage.r='down';if(lang>120&&rang>120)state.hint='保持伏地挺身預備姿勢，左右膝輪流往胸口收';else if(lang>=100&&lang<=120&&rang>=100&&rang<=120)state.hint='膝蓋再往胸口靠近一點，角度不足還不會計數'}}else if(type==='squat'){const angle=calculateAngle(l_hip,l_kn,l_an);if(angle>160){if(state.stage==='down'){state.counter++;addCalories('squat',weightMul);state.hint='站直完成一次！下一次臀部往後坐、膝蓋穩定'}else state.hint='準備深蹲：雙腳站穩，臀部往後往下坐';state.stage='up'}else if(angle<90){state.stage='down';state.hint='深蹲深度到位！保持胸口打開，現在站起來'}else state.hint='再蹲低一點，膝蓋角度小於 90 度後再站起才會計數'}else if(type==='triceps_dip'){let torso=Math.max(Math.abs(l_sh.y-l_hip.y),Math.abs(r_sh.y-r_hip.y));if(torso<.1)torso=.2;const avg=((l_wr.y-l_sh.y)/torso+(r_wr.y-r_sh.y)/torso)/2;if(avg<.5){if(state.stage!=='down'){state.stage='down';state.hint='推起來！'}}else if(avg>.8){if(state.stage==='down'){state.counter++;addCalories('triceps_dip',weightMul);state.hint='漂亮！手臂撐直完成一次，接著慢慢下壓'}else state.hint='手掌撐穩椅緣，身體靠近椅子，準備往下沉';state.stage='up'}else state.hint='繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起'}else if(type==='high_knees'){const up=l_kn.y<l_hip.y+.05||r_kn.y<r_hip.y+.05;if(up){if(state.stage==='down'){state.counter++;addCalories('high_knees',weightMul);state.hint='做得好！膝蓋盡量抬高至腰部高度'}state.stage='up'}else{state.stage='down';state.hint='背部打直，核心收緊，左右腳快速交替高抬'}}else if(type==='lunge'){const la=calculateAngle(l_hip,l_kn,l_an),ra=calculateAngle(r_hip,r_kn,r_an);if(la<110&&ra<110){if(state.stage==='up'){state.counter++;addCalories('lunge',weightMul);state.hint='弓步深度到位，完成一次！推回站姿後換腳'}else state.hint='下蹲到位！前後腳膝蓋都彎曲，保持身體穩定';state.stage='down'}else if(la>150||ra>150){state.stage='up';state.hint='站姿準備完成：向前或向後跨一步，身體垂直下沉'}else state.hint='弓步再下沉一點，前後膝都接近彎曲後才會計數'}else if(type==='pushup_rotation'){const body=calculateAngle(l_sh,l_hip,l_kn);if(body<120)state.hint='請保持背部與腿部呈一直線';else{const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,rot=l_wr.y<l_sh.y-.15||r_wr.y<r_sh.y-.15;if(avg<=90){state.stage='down';state.hint='推起並轉身舉手！'}else if(state.stage==='down'&&rot&&(la>140||ra>140)){state.counter++;addCalories('pushup_rotation',weightMul);state.hint='完美轉身！換邊繼續';state.stage='up'}}}return state}
-function updateDashboard(data){if(!data)return;document.getElementById('count').textContent=Math.floor(data.counter);document.getElementById('target').textContent=' / '+Math.floor(data.target);document.getElementById('progress_label').textContent='完成進度 (次數)';document.getElementById('total_calories').textContent=Number(data.total_calories||0).toFixed(2);const hint=data.hint||'';document.getElementById('hint').textContent=hint;speakText(getShortSpeechText(hint))}
-function nextExercise(isManualSkip=false){if(!isCircuitRunning)return;isTransitioning=true;stopFrameLoop();isReplaying=false;if(isManualSkip)skippedExercises++;currentIndex++;runExerciseStep()}function abortCircuit(){if(confirm('真的要放棄訓練嗎？\n(點擊確認將提早結束並結算目前成績)')){isCircuitRunning=false;wasAborted=true;stopFrameLoop();stopTeachingMonitor();isTransitioning=false;if(ytPlayer&&typeof ytPlayer.stopVideo==='function')ytPlayer.stopVideo();document.getElementById('yt_player_container').style.display='none';document.getElementById('skip_overlay').style.display='none';video.style.opacity='1';video.style.position='relative';video.style.zIndex='1';finishCircuit()}}function finishCircuit(){isCircuitRunning=false;stopFrameLoop();stopTeachingMonitor();document.getElementById('circuit_controls').style.display='none';document.getElementById('settings_bar').style.display='flex';document.getElementById('exercise_title').textContent='訓練結算中...';document.getElementById('hint').textContent='生成 AI 報告中...';document.getElementById('modal_overlay').style.display='block';document.getElementById('ai_modal').style.display='flex';const completed=Math.max(0,Math.min(exercises.length,currentIndex-skippedExercises));hiitFetch('/get_ai_feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({completed_exercises:completed,total_exercises:exercises.length,skipped_exercises:skippedExercises,was_aborted:wasAborted,total_calories:Number(document.getElementById('total_calories').textContent||0)})}).then(r=>r.json()).then(data=>{document.getElementById('ai_feedback_text').innerHTML=(data.feedback||'無法取得 AI 講評').replace(/\n/g,'<br>')}).catch(err=>{document.getElementById('ai_feedback_text').textContent='AI 講評產生失敗：'+err.message})}
-</script>
-</body>
+ </head>
+ <body>
+  <div id="app_container">
+   <header>
+    <h1>
+     ⚡HIIT 巡迴教練
+    </h1>
+    <div id="settings_bar">
+     <select id="camera_select">
+     </select>
+     <select id="exercise_level">
+      <option value="beginner">
+       🟢 初階
+      </option>
+      <option value="advanced">
+       🔴 進階
+      </option>
+     </select>
+     <button id="voice_toggle" onclick="toggleVoice()" style="background:#7952B3;">
+      🔊 語音：開
+     </button>
+     <button onclick="startCircuit()">
+      開始巡迴訓練
+     </button>
+    </div>
+    <div id="circuit_controls">
+     <span id="exercise_title">
+      等待開始...
+     </span>
+     <div>
+      <button onclick="replayVideo()" style="background: #2196F3; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+       重看教學 (Replay)
+      </button>
+      <button id="skeleton_toggle" onclick="toggleSkeleton()" style="background: #9C27B0; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+       骨架：開
+      </button>
+      <button onclick="nextExercise(true)" style="background: #FF5722; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+       跳過 (Skip)
+      </button>
+      <button onclick="abortCircuit()" style="background: #E91E63; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+       放棄 (Quit)
+      </button>
+     </div>
+    </div>
+   </header>
+   <div id="main_display">
+    <video autoplay="" id="camera_feed" muted="" playsinline="">
+    </video>
+    <canvas id="skeleton_canvas">
+    </canvas>
+    <canvas id="capture_canvas" style="display:none;">
+    </canvas>
+    <div id="camera_status">
+     正在初始化攝像頭...
+    </div>
+    <div id="yt_player_container">
+     <div id="yt_player">
+     </div>
+    </div>
+    <div id="skip_overlay" onclick="skipTeachingVideo()">
+     按下鍵盤
+     <b>
+      [T]
+     </b>
+     鍵跳過教學，或點擊這裡跳過
+    </div>
+   </div>
+   <div id="dashboard">
+    <div class="data-box">
+     <div class="data-value">
+      <span id="count">
+       0
+      </span>
+      <span id="target" style="font-size:24px; color:#888;">
+       / 0
+      </span>
+     </div>
+     <div class="data-label" id="progress_label">
+      完成進度 (次數)
+     </div>
+    </div>
+    <div class="data-box" style="border-left: 2px solid #444; padding-left: 30px;">
+     <div class="data-value">
+      <span id="total_calories">
+       0.00
+      </span>
+      kcal
+     </div>
+     <div class="data-label">
+      本次巡迴累計消耗
+     </div>
+    </div>
+    <div id="hint_box">
+     <div class="data-label" style="margin-bottom: 5px;">
+      動作指導
+     </div>
+     <p id="hint">
+      請允許瀏覽器攝像頭權限並點擊開始
+     </p>
+    </div>
+   </div>
+  </div>
+  <div class="modal-overlay" id="modal_overlay">
+  </div>
+  <div id="ai_modal">
+   <span class="close-btn" onclick="location.reload()">
+    ×
+   </span>
+   <h2 style="margin-top: 5px; margin-bottom: 10px; font-size: 22px;">
+    🤖 AI 巡迴總結報告
+   </h2>
+   <div id="ai_feedback_text">
+    正在生成您的專屬分析報告，請稍候...
+   </div>
+   <button onclick="location.reload()" style="margin-top:15px; width:100%; background:#4CAF50; color:white; border:none; padding:12px; border-radius:10px; font-size:18px; cursor:pointer; flex-shrink: 0;">
+    完成並關閉
+   </button>
+  </div>
+  <div id="weight_modal">
+   <h2 style="color:#FFD700; margin-bottom:20px;">
+    開始前，請輸入您的體重 (kg)
+   </h2>
+   <p style="color:#aaa; margin-bottom:20px;">
+    我們需要您的體重來估算卡路里消耗量
+   </p>
+   <input id="user_weight_input" max="200" min="30" placeholder="例如: 65" style="font-size:32px; padding:10px; width:180px; text-align:center; border-radius:8px; border:none; margin-bottom:30px;" type="number"/>
+   <br/>
+   <button onclick="confirmWeightAndStart()" style="background:#4CAF50; color:white; font-size:22px; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+    確認並開始
+   </button>
+   <button onclick="document.getElementById('weight_modal').style.display='none'; document.getElementById('modal_overlay').style.display='none';" style="background:#555; color:white; font-size:22px; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; margin-left:15px;">
+    取消
+   </button>
+  </div>
+  <script>
+   const HIIT_CLIENT_ID_KEY = 'hiit_client_id';
+function getHiitClientId() {
+    let clientId = localStorage.getItem(HIIT_CLIENT_ID_KEY);
+    if (!clientId) {
+        if (window.crypto && window.crypto.randomUUID) {
+            clientId = window.crypto.randomUUID();
+        }
+        else {
+            clientId = 'client-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        }
+        localStorage.setItem(HIIT_CLIENT_ID_KEY, clientId);
+    }
+    return clientId;
+}
+function hiitFetch(url, options = {}) {
+    const headers = options.headers || {};
+    headers['X-Client-ID'] = getHiitClientId();
+    return fetch(url, {
+        ...options,
+        headers
+    });
+}
+const exercises = [
+    { id: 'jumping_jacks', name: '1. 開合跳', yt: 'qz9MFrQL3IA' },
+    { id: 'wall_sit', name: '2. 靠牆屈膝', yt: '3tXV82N_-xA' },
+    { id: 'pushup', name: '3. 伏地挺身', yt: 'IODxDxX7oi4' },
+    { id: 'sit_up', name: '4. 仰臥起坐', yt: '1fbU_MkV7NE' },
+    { id: 'mountain_climber', name: '5. 計時登山者', yt: 'kLh-uczlPLg' },
+    { id: 'squat', name: '6. 深蹲', yt: 'CJVQJHpRG70' },
+    { id: 'triceps_dip', name: '7. 椅子三頭肌撐體', yt: '5CgfgO__oGo' },
+    { id: 'high_knees', name: '8. 原地抬膝', yt: 'vpCoRIV5L9M' },
+    { id: 'lunge', name: '9. 弓步深蹲', yt: 'tQNktxPkSeE' },
+    { id: 'pushup_rotation', name: '10. 掌上壓後轉身', yt: 'Ohz9RWkCvH0' }
+];
+let currentIndex = 0;
+let ytPlayer;
+let updateInterval;
+let isCircuitRunning = false;
+let isTransitioning = false;
+let userWeight = 65.0;
+let isReplaying = false;
+let mediaStream = null;
+let isSendingFrame = false;
+let skippedExercises = 0;
+let wasAborted = false;
+let voiceEnabled = true;
+let lastSpokenText = '';
+let lastSpeakTime = 0;
+let speechUnlocked = false;
+let skeletonEnabled = true;
+let teachingMonitorInterval = null;
+function toggleVoice() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById('voice_toggle');
+    btn.textContent = voiceEnabled ? '🔊 語音：開' : '🔇 語音：關';
+}
+function toggleSkeleton() {
+    skeletonEnabled = !skeletonEnabled;
+    const btn = document.getElementById('skeleton_toggle');
+    btn.textContent = skeletonEnabled ? '骨架：開' : '骨架：關';
+    if (!skeletonEnabled) {
+        clearSkeleton();
+        skeletonCanvas.style.display = 'none';
+    }
+    else {
+        skeletonCanvas.style.display = 'block';
+    }
+}
+function unlockSpeech() {
+    // 某些瀏覽器需要使用者互動後才允許語音播放
+    if (!('speechSynthesis' in window))
+        return;
+    speechUnlocked = true;
+    const test = new SpeechSynthesisUtterance('');
+    window.speechSynthesis.speak(test);
+}
+function getShortSpeechText(text) {
+    if (!text)
+        return '';
+    // 移除表情符號，避免語音唸出奇怪內容
+    let speech = text.replace(/[🟢⚠️⏱️🎉🔥💪✅❌]/g, '');
+    // 依照常見提示縮短語音，但畫面文字不受影響
+    const rules = [
+        ['準備動作完成：雙手放下、雙腳併攏，接著向外跳開', '手腳跳開'],
+        ['手舉過肩、雙腳打開標準；下一步請收回手腳', '手腳收回'],
+        ['漂亮！手腳打開到位，回到併攏後繼續下一下', '繼續'],
+        ['開合跳要同時完成：雙手舉過肩，雙腳向外打開', '手腳打開'],
+        ['請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度', '下蹲膝蓋90度'],
+        ['蹲姿到位！保持膝蓋約 90 度，再站起完成一次', '回到原位'],
+        ['調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高', '蹲低一些'],
+        ['請確保全身入鏡，並呈現趴下撐體姿勢', '全身入鏡'],
+        ['身體保持一直線，接著彎曲手肘下壓', '手下壓'],
+        ['下壓到位！核心收緊，現在推起來', '推起來'],
+        ['漂亮！手臂已撐直，完成一次伏地挺身', '完成一次'],
+        ['持續動作：下壓時手肘小於 90 度，撐起時手臂打直', '姿勢做完整'],
+        ['調整位置：確保全身入鏡（肩、腰、膝蓋）', '全身入鏡'],
+        ['請躺平！不要站著彎腰', '不要只彎腰'],
+        ['起身到位！現在慢慢躺回地面，躺下後才會計數', '躺回去原位'],
+        ['已起身到位，請躺回地面完成這一下', '躺回才算一下'],
+        ['完成一次！下背貼地後，再準備下一次起身', '完成一次'],
+        ['繼續動作：起身靠近膝蓋後，再躺回地面才算一次', '靠近膝蓋再躺回'],
+        ['請趴下呈現伏地挺身預備姿勢', '趴下準備'],
+        ['保持伏地挺身預備姿勢，左右膝輪流往胸口收', '收膝蓋'],
+        ['膝蓋再往胸口靠近一點，角度不足還不會計數', '再靠近胸口'],
+        ['左腳漂亮！', '左腳漂亮'],
+        ['右腳漂亮！', '右腳漂亮'],
+        ['準備深蹲：雙腳站穩，臀部往後往下坐', '準備深蹲'],
+        ['深蹲深度到位！保持胸口打開，現在站起來', '站起來'],
+        ['再蹲低一點，膝蓋角度小於 90 度後再站起才會計數', '蹲低一些'],
+        ['推起來！', '推起'],
+        ['漂亮！手臂撐直完成一次，接著慢慢下壓', '完成一次'],
+        ['手掌撐穩椅緣，身體靠近椅子，準備往下沉', '準備下沉'],
+        ['繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起', '下推'],
+        ['做得好！膝蓋盡量抬高至腰部高度', '抬高至腰部'],
+        ['背部打直，核心收緊，左右腳快速交替高抬', '快速抬腳'],
+        ['繼續保持節奏，膝蓋抬高到位才會計數', '保持節奏'],
+        ['站姿準備完成：向前或向後跨一步，身體垂直下沉', '準備弓步'],
+        ['弓步深度到位，完成一次！推回站姿後換腳', '換腳'],
+        ['下蹲到位！前後腳膝蓋都彎曲，保持身體穩定', '站回原位'],
+        ['弓步再下沉一點，前後膝都接近彎曲後才會計數', '再下沉一些'],
+        ['請保持背部與腿部呈一直線', '背與腿打直'],
+        ['推起並轉身舉手！', '轉身舉手'],
+        ['完美轉身！換邊繼續', '換邊繼續'],
+    ];
+    for (const [fullText, shortText] of rules) {
+        if (speech.includes(fullText)) {
+            return shortText;
+        }
+    }
+    // 處理倒數秒數類型：例如「剩下 20 秒」「剩 10 秒」
+    const secondMatch = speech.match(/剩(?:下)?\s*(\d+)\s*秒/);
+    if (secondMatch) {
+        const sec = parseInt(secondMatch[1], 10);
+        if (sec <= 5 || sec % 5 === 0) {
+            return `剩 ${sec} 秒`;
+        }
+        return '';
+    }
+    // 如果沒有對應規則，就取前 12 個中文字左右，避免講太長
+    return speech.length > 8 ? speech.slice(0, 8) : speech;
+}
+function speakText(text, force = false) {
+    if (!voiceEnabled)
+        return;
+    if (!speechUnlocked)
+        return;
+    if (!text)
+        return;
+    if (!('speechSynthesis' in window))
+        return;
+    const now = Date.now();
+    // 避免同一句一直重複唸
+    if (!force && text === lastSpokenText)
+        return;
+    // 避免太頻繁說話
+    if (!force && now - lastSpeakTime < 3500)
+        return;
+    lastSpokenText = text;
+    lastSpeakTime = now;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = 1.25;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    window.speechSynthesis.speak(utterance);
+}
+const video = document.getElementById('camera_feed');
+const canvas = document.getElementById('capture_canvas');
+const skeletonCanvas = document.getElementById('skeleton_canvas');
+const skeletonCtx = skeletonCanvas.getContext('2d');
+const cameraStatus = document.getElementById('camera_status');
+var tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+var firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('yt_player', {
+        height: '100%',
+        width: '100%',
+        playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+        events: { 'onStateChange': onPlayerStateChange }
+    });
+}
+function onPlayerStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED &&
+        isCircuitRunning &&
+        document.getElementById('yt_player_container').style.display === 'block') {
+        startDetection();
+    }
+}
+function skipTeachingVideo() {
+    if (!isCircuitRunning)
+        return;
+    if (document.getElementById('yt_player_container').style.display !== 'block')
+        return;
+    startDetection();
+}
+function startTeachingMonitor() {
+    stopTeachingMonitor();
+    teachingMonitorInterval = setInterval(() => {
+        if (!isCircuitRunning)
+            return;
+        if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function')
+            return;
+        if (document.getElementById('yt_player_container').style.display !== 'block')
+            return;
+        const state = ytPlayer.getPlayerState();
+        if (state === YT.PlayerState.ENDED) {
+            startDetection();
+            return;
+        }
+        // 備援：有些瀏覽器不會穩定觸發 ENDED 事件，所以用時間判斷
+        if (typeof ytPlayer.getDuration === 'function' &&
+            typeof ytPlayer.getCurrentTime === 'function') {
+            const duration = ytPlayer.getDuration();
+            const current = ytPlayer.getCurrentTime();
+            if (duration > 0 && current >= duration - 0.5) {
+                startDetection();
+            }
+        }
+    }, 800);
+}
+function stopTeachingMonitor() {
+    if (teachingMonitorInterval) {
+        clearInterval(teachingMonitorInterval);
+        teachingMonitorInterval = null;
+    }
+}
+window.addEventListener('keydown', function (event) {
+    if ((event.key === 't' || event.key === 'T') && isCircuitRunning) {
+        skipTeachingVideo();
+    }
+}, true);
+async function loadCameraOptions() {
+    const select = document.getElementById('camera_select');
+    select.innerHTML = '<option value="">🎥 預設攝像頭</option>';
+    try {
+        await startBrowserCamera();
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+        select.innerHTML = '';
+        cameras.forEach((camera, index) => {
+            const option = document.createElement('option');
+            option.value = camera.deviceId;
+            option.textContent = `🎥 ${camera.label || `攝像頭 ${index + 1}`}`;
+            select.appendChild(option);
+        });
+        if (cameras.length === 0) {
+            select.innerHTML = '<option value="">未偵測到攝像頭</option>';
+            cameraStatus.textContent = '未偵測到攝像頭，請檢查瀏覽器權限。';
+        }
+    }
+    catch (err) {
+        cameraStatus.textContent = '攝像頭啟動失敗：' + err.message;
+        document.getElementById('hint').textContent = '請允許瀏覽器攝像頭權限，Render 網站需使用 HTTPS。';
+    }
+    select.onchange = async (e) => {
+        await startBrowserCamera(e.target.value);
+    };
+}
+async function startBrowserCamera(deviceId = null) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('此瀏覽器不支援 getUserMedia');
+    }
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+    }
+    const constraints = {
+        video: {
+            width: { ideal: 960 },
+            height: { ideal: 540 },
+            facingMode: 'user'
+        },
+        audio: false
+    };
+    if (deviceId) {
+        constraints.video.deviceId = { exact: deviceId };
+        delete constraints.video.facingMode;
+    }
+    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = mediaStream;
+    await video.play();
+    cameraStatus.textContent = '攝像頭已啟動：畫面由瀏覽器本機提供';
+}
+loadCameraOptions();
+function startCircuit() {
+    document.getElementById('modal_overlay').style.display = 'block';
+    document.getElementById('weight_modal').style.display = 'block';
+    document.getElementById('user_weight_input').focus();
+}
+function confirmWeightAndStart() {
+    unlockSpeech();
+    const inputWeight = document.getElementById('user_weight_input').value;
+    if (!inputWeight || inputWeight <= 0) {
+        alert("請輸入有效的體重！");
+        return;
+    }
+    skeletonEnabled = true;
+    document.getElementById('skeleton_toggle').textContent = '骨架：開';
+    skeletonCanvas.style.display = 'block';
+    userWeight = parseFloat(inputWeight);
+    document.getElementById('weight_modal').style.display = 'none';
+    document.getElementById('modal_overlay').style.display = 'none';
+    document.getElementById('settings_bar').style.display = 'none';
+    document.getElementById('circuit_controls').style.display = 'flex';
+    isCircuitRunning = true;
+    skippedExercises = 0;
+    wasAborted = false;
+    hiitFetch('/reset_circuit', { method: 'POST' }).finally(runExerciseStep);
+}
+function runExerciseStep() {
+    if (currentIndex >= exercises.length) {
+        finishCircuit();
+        return;
+    }
+    const ex = exercises[currentIndex];
+    document.getElementById('exercise_title').textContent = ex.name;
+    document.getElementById('hint').textContent = "正在播放教學，請準備...";
+    speakText(`下一項，${ex.name}`, true);
+    stopFrameLoop();
+    clearSkeleton();
+    video.style.opacity = '0';
+    video.style.position = 'absolute';
+    video.style.zIndex = '-1';
+    document.getElementById('yt_player_container').style.display = 'block';
+    document.getElementById('skip_overlay').style.display = 'block';
+    if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+        tPlayer.loadVideoById(ex.yt);
+        startTeachingMonitor();
+    }
+}
+function stopFrameLoop() {
+    if (updateInterval)
+        clearInterval(updateInterval);
+    updateInterval = null;
+    clearSkeleton();
+}
+const POSE_CONNECTIONS = [
+    [11, 12],
+    [11, 13], [13, 15],
+    [12, 14], [14, 16],
+    [11, 23], [12, 24],
+    [23, 24],
+    [23, 25], [25, 27],
+    [24, 26], [26, 28],
+    [27, 31], [28, 32]
+];
+function resizeSkeletonCanvas() {
+    const rect = video.getBoundingClientRect();
+    skeletonCanvas.width = rect.width;
+    skeletonCanvas.height = rect.height;
+    skeletonCanvas.style.width = rect.width + 'px';
+    skeletonCanvas.style.height = rect.height + 'px';
+}
+function drawSkeleton(landmarks) {
+    if (!skeletonEnabled) {
+        clearSkeleton();
+        return;
+    }
+    resizeSkeletonCanvas();
+    skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+    if (!landmarks || landmarks.length === 0)
+        return;
+    const w = skeletonCanvas.width;
+    const h = skeletonCanvas.height;
+    skeletonCtx.lineWidth = 4;
+    skeletonCtx.strokeStyle = '#00ff66';
+    skeletonCtx.fillStyle = '#ffeb3b';
+    for (const [a, b] of POSE_CONNECTIONS) {
+        const p1 = landmarks[a];
+        const p2 = landmarks[b];
+        if (!p1 || !p2)
+            continue;
+        if ((p1.visibility || 0) < 0.45 || (p2.visibility || 0) < 0.45)
+            continue;
+        skeletonCtx.beginPath();
+        skeletonCtx.moveTo(p1.x * w, p1.y * h);
+        skeletonCtx.lineTo(p2.x * w, p2.y * h);
+        skeletonCtx.stroke();
+    }
+    for (const p of landmarks) {
+        if (!p || (p.visibility || 0) < 0.45)
+            continue;
+        skeletonCtx.beginPath();
+        skeletonCtx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2);
+        skeletonCtx.fill();
+    }
+}
+function clearSkeleton() {
+    if (!skeletonCanvas || !skeletonCtx)
+        return;
+    skeletonCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+}
+async function sendFrame() {
+    if (!isCircuitRunning || isTransitioning || isSendingFrame)
+        return;
+    if (!video.videoWidth || !video.videoHeight)
+        return;
+    isSendingFrame = true;
+    try {
+        const maxWidth = 640;
+        const scale = Math.min(1, maxWidth / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = canvas.toDataURL('image/jpeg', 0.72);
+        const res = await hiitFetch('/analyze_frame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frame })
+        });
+        const data = await res.json();
+        updateDashboard(data);
+        drawSkeleton(data.landmarks);
+        if (data.counter >= data.target && data.is_started && !isTransitioning) {
+            isTransitioning = true;
+            document.getElementById('count').style.color = "#4CAF50";
+            speakText('完成這一項，準備進入下一項運動。', true);
+            setTimeout(() => nextExercise(false), 2000);
+        }
+        else if (!isTransitioning) {
+            document.getElementById('count').style.color = "white";
+        }
+    }
+    catch (err) {
+        document.getElementById('hint').textContent = '傳送畫面失敗：' + err.message;
+    }
+    finally {
+        isSendingFrame = false;
+    }
+}
+function updateDashboard(data) {
+    if (!data)
+        return;
+    const isTimed = false;
+    if (isTimed) {
+        let timeLeft = Math.max(0, Math.ceil(data.target - data.counter));
+        document.getElementById('count').textContent = timeLeft;
+        document.getElementById('target').textContent = " 秒";
+        document.getElementById('progress_label').textContent = "剩餘時間 (倒數計時)";
+    }
+    else {
+        document.getElementById('count').textContent = Math.floor(data.counter);
+        document.getElementById('target').textContent = " / " + Math.floor(data.target);
+        document.getElementById('progress_label').textContent = "完成進度 (次數)";
+    }
+    document.getElementById('total_calories').textContent = Number(data.total_calories || 0).toFixed(2);
+    const hintText = data.hint || '';
+    document.getElementById('hint').textContent = hintText;
+    // 畫面顯示完整文字，但語音只唸縮短版
+    const shortSpeechText = getShortSpeechText(hintText);
+    speakText(shortSpeechText);
+}
+function nextExercise(isManualSkip = false) {
+    if (!isCircuitRunning)
+        return;
+    isTransitioning = true;
+    stopFrameLoop();
+    isReplaying = false;
+    if (isManualSkip) {
+        skippedExercises++;
+    }
+    hiitFetch('/stop_exercise', { method: 'POST' }).then(() => {
+        currentIndex++;
+        runExerciseStep();
+    });
+}
+function abortCircuit() {
+    if (confirm("真的要放棄訓練嗎？\n(點擊確認將提早結束並結算目前成績)")) {
+        isCircuitRunning = false;
+        wasAborted = true;
+        stopFrameLoop();
+        stopTeachingMonitor();
+        isTransitioning = false;
+        if (ytPlayer && typeof ytPlayer.stopVideo === 'function')
+            ytPlayer.stopVideo();
+        document.getElementById('yt_player_container').style.display = 'none';
+        document.getElementById('skip_overlay').style.display = 'none';
+        video.style.opacity = '1';
+        video.style.position = 'relative';
+        video.style.zIndex = '1';
+        finishCircuit();
+    }
+}
+function finishCircuit() {
+    isCircuitRunning = false;
+    stopFrameLoop();
+    topTeachingMonitor();
+    document.getElementById('circuit_controls').style.display = 'none';
+    document.getElementById('settings_bar').style.display = 'flex';
+    document.getElementById('exercise_title').textContent = '訓練結算中...';
+    document.getElementById('hint').textContent = '生成 AI 報告中...';
+    hiitFetch('/stop_exercise', { method: 'POST' })
+        .then(() => {
+        document.getElementById('modal_overlay').style.display = 'block';
+        document.getElementById('ai_modal').style.display = 'flex';
+        const completedExercises = Math.max(0, Math.min(exercises.length, currentIndex - skippedExercises));
+        hiitFetch('/get_ai_feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                completed_exercises: completedExercises,
+                total_exercises: exercises.length,
+                skipped_exercises: skippedExercises,
+                was_aborted: wasAborted
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+            document.getElementById('ai_feedback_text').innerHTML = (data.feedback || '無法取得 AI 講評').replace(/\n/g, "<br>");
+        })
+            .catch(err => {
+            document.getElementById('ai_feedback_text').textContent = 'AI 講評產生失敗：' + err.message;
+        });
+    });
+}
+  </script>
+ </body>
 </html>
