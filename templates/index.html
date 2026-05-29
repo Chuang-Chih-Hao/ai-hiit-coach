@@ -645,7 +645,7 @@
         function startFrameLoop() {
             stopFrameLoop();
             sendFrame();
-            updateInterval = setInterval(sendFrame, 400);
+            updateInterval = setInterval(sendFrame, 300);
         }
 
         function stopFrameLoop() {
@@ -705,11 +705,14 @@
                 skeletonCtx.stroke();
             }
 
-            for (const p of landmarks) {
+            const IMPORTANT_POINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 31, 32];
+
+            for (const index of IMPORTANT_POINTS) {
+                const p = landmarks[index];
                 if (!p || (p.visibility || 0) < 0.45) continue;
 
                 skeletonCtx.beginPath();
-                skeletonCtx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2);
+                skeletonCtx.arc(p.x * w, p.y * h, 6, 0, Math.PI * 2);
                 skeletonCtx.fill();
             }
         }
@@ -726,7 +729,7 @@
             isSendingFrame = true;
 
             try {
-                const maxWidth = 640;
+                const maxWidth = 480;
                 const scale = Math.min(1, maxWidth / video.videoWidth);
                 canvas.width = Math.round(video.videoWidth * scale);
                 canvas.height = Math.round(video.videoHeight * scale);
@@ -734,7 +737,7 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                const frame = canvas.toDataURL('image/jpeg', 0.72);
+                const frame = canvas.toDataURL('image/jpeg', 0.55);
 
                 const res = await hiitFetch('/analyze_frame', {
                     method: 'POST',
