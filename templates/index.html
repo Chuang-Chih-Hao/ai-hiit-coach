@@ -16,7 +16,23 @@
 const HIIT_CLIENT_ID_KEY='hiit_client_id';function getHiitClientId(){let id=localStorage.getItem(HIIT_CLIENT_ID_KEY);if(!id){id=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():'client-'+Date.now()+'-'+Math.random().toString(36).slice(2);localStorage.setItem(HIIT_CLIENT_ID_KEY,id)}return id}function hiitFetch(url,options={}){const headers=options.headers||{};headers['X-Client-ID']=getHiitClientId();return fetch(url,{...options,headers})}
 const exercises=[{id:'jumping_jacks',name:'1. 開合跳',yt:'qz9MFrQL3IA'},{id:'wall_sit',name:'2. 靠牆屈膝',yt:'3tXV82N_-xA'},{id:'pushup',name:'3. 伏地挺身',yt:'IODxDxX7oi4'},{id:'sit_up',name:'4. 仰臥起坐',yt:'1fbU_MkV7NE'},{id:'mountain_climber',name:'5. 計時登山者',yt:'kLh-uczlPLg'},{id:'squat',name:'6. 深蹲',yt:'CJVQJHpRG70'},{id:'triceps_dip',name:'7. 椅子三頭肌撐體',yt:'5CgfgO__oGo'},{id:'high_knees',name:'8. 原地抬膝',yt:'vpCoRIV5L9M'},{id:'lunge',name:'9. 弓步深蹲',yt:'tQNktxPkSeE'},{id:'pushup_rotation',name:'10. 掌上壓後轉身',yt:'Ohz9RWkCvH0'}];
 const LOCAL_TARGETS={beginner:{jumping_jacks:15,wall_sit:12,pushup:10,sit_up:15,mountain_climber:30,squat:15,triceps_dip:12,high_knees:20,lunge:16,pushup_rotation:10},advanced:{jumping_jacks:30,wall_sit:24,pushup:20,sit_up:30,mountain_climber:60,squat:30,triceps_dip:20,high_knees:40,lunge:30,pushup_rotation:20}};const LOCAL_CALORIES={jumping_jacks:.15,wall_sit:.35,pushup:.45,sit_up:.15,mountain_climber:.15,squat:.40,triceps_dip:.30,high_knees:.18,lunge:.38,pushup_rotation:.55};
-const POSE_CONNECTIONS=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];const IMPORTANT_POINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
+
+const POSE_CONNECTIONS=[
+  [11,12],[11,13],[13,15],[12,14],[14,16],
+  [11,23],[12,24],[23,24],
+  [23,25],[25,27],
+  [24,26],[26,28],
+  [27,31],[28,32]
+];
+
+// 登山者側身時，膝蓋可能消失；這兩條線當作腿部備援骨架線
+const FALLBACK_LEG_CONNECTIONS=[
+  [23,27], // 左髖 -> 左踝
+  [24,28]  // 右髖 -> 右踝
+];
+
+const IMPORTANT_POINTS=[11,12,13,14,15,16,23,24,25,26,27,28,31,32];
+
 let currentIndex=0,ytPlayer,updateInterval,isCircuitRunning=false,isTransitioning=false,userWeight=65,isReplaying=false,mediaStream=null,skippedExercises=0,wasAborted=false,voiceEnabled=true,lastSpokenText='',lastSpeakTime=0,speechUnlocked=false,skeletonEnabled=true,teachingMonitorInterval=null;let PoseLandmarkerClass=null,FilesetResolverClass=null,poseLandmarker=null,localPoseReady=false,localPoseLoopId=null,lastVideoTime=-1,lastPoseProcessMs=0,localExerciseState=null,circuitTotalCalories=0;
 const video=document.getElementById('camera_feed'),canvas=document.getElementById('capture_canvas'),skeletonCanvas=document.getElementById('skeleton_canvas'),skeletonCtx=skeletonCanvas.getContext('2d'),cameraStatus=document.getElementById('camera_status');
 function toggleVoice(){voiceEnabled=!voiceEnabled;document.getElementById('voice_toggle').textContent=voiceEnabled?'🔊 語音：開':'🔇 語音：關'}function toggleSkeleton(){skeletonEnabled=!skeletonEnabled;const b=document.getElementById('skeleton_toggle');b.textContent=skeletonEnabled?'骨架：開':'骨架：關';if(!skeletonEnabled){clearSkeleton();skeletonCanvas.style.display='none'}else{skeletonCanvas.style.display='block'}}function unlockSpeech(){if(!('speechSynthesis'in window))return;speechUnlocked=true;window.speechSynthesis.speak(new SpeechSynthesisUtterance(''))}
@@ -29,9 +45,184 @@ function startCircuit(){document.getElementById('modal_overlay').style.display='
 function replayVideo(){if(!isCircuitRunning)return;isReplaying=true;stopFrameLoop();video.style.opacity='0';video.style.position='absolute';video.style.zIndex='-1';document.getElementById('yt_player_container').style.display='block';document.getElementById('skip_overlay').style.display='block';const ex=exercises[currentIndex];if(ytPlayer&&typeof ytPlayer.loadVideoById==='function'){ytPlayer.loadVideoById(ex.yt);startTeachingMonitor()}}
 async function startDetection(){stopTeachingMonitor();if(ytPlayer&&typeof ytPlayer.stopVideo==='function')ytPlayer.stopVideo();document.getElementById('yt_player_container').style.display='none';document.getElementById('skip_overlay').style.display='none';speakText('開始偵測',true);video.style.opacity='1';video.style.position='relative';video.style.zIndex='1';try{await initLocalPoseLandmarker()}catch(err){document.getElementById('hint').textContent='本機 AI 模型載入失敗：'+err.message;cameraStatus.textContent='本機 AI 模型載入失敗';return}if(!isReplaying){const level=document.getElementById('exercise_level').value;const type=exercises[currentIndex].id;localExerciseState=createLocalExerciseState(type,level,userWeight)}isReplaying=false;isTransitioning=false;updateDashboard(localExerciseState);startFrameLoop()}function startFrameLoop(){stopFrameLoop();startLocalPoseLoop()}function stopFrameLoop(){if(updateInterval)clearInterval(updateInterval);updateInterval=null;stopLocalPoseLoop();clearSkeleton()}
 function startLocalPoseLoop(){stopLocalPoseLoop();function loop(){if(!isCircuitRunning||isTransitioning){localPoseLoopId=requestAnimationFrame(loop);return}const now=performance.now();if(now-lastPoseProcessMs>=80&&poseLandmarker&&video.readyState>=2&&video.currentTime!==lastVideoTime){lastPoseProcessMs=now;lastVideoTime=video.currentTime;const result=poseLandmarker.detectForVideo(video,now);if(result.landmarks&&result.landmarks.length>0){const lm=result.landmarks[0];drawSkeleton(lm);const data=analyzeLocalLandmarks(lm);updateDashboard(data);if(data.counter>=data.target&&data.is_started&&!isTransitioning){isTransitioning=true;document.getElementById('count').style.color='#4CAF50';speakText('完成，下一項',true);setTimeout(()=>nextExercise(false),1200)}else if(!isTransitioning){document.getElementById('count').style.color='white'}}else{clearSkeleton();if(localExerciseState){localExerciseState.hint='未偵測到完整人體，請退後一點並保持全身入鏡。';updateDashboard(localExerciseState)}}}localPoseLoopId=requestAnimationFrame(loop)}localPoseLoopId=requestAnimationFrame(loop)}function stopLocalPoseLoop(){if(localPoseLoopId){cancelAnimationFrame(localPoseLoopId);localPoseLoopId=null}}
-function resizeSkeletonCanvas(){const rect=video.getBoundingClientRect();skeletonCanvas.width=rect.width;skeletonCanvas.height=rect.height;skeletonCanvas.style.width=rect.width+'px';skeletonCanvas.style.height=rect.height+'px'}function getVideoDrawArea(){const w=skeletonCanvas.width,h=skeletonCanvas.height;if(!video.videoWidth||!video.videoHeight)return{x:0,y:0,width:w,height:h};const vr=video.videoWidth/video.videoHeight,cr=w/h;if(cr>vr){const dh=h,dw=h*vr;return{x:(w-dw)/2,y:0,width:dw,height:dh}}else{const dw=w,dh=w/vr;return{x:0,y:(h-dh)/2,width:dw,height:dh}}}function drawSkeleton(landmarks){if(!skeletonEnabled){clearSkeleton();return}resizeSkeletonCanvas();skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height);if(!landmarks||!landmarks.length)return;const area=getVideoDrawArea();skeletonCtx.lineWidth=4;skeletonCtx.strokeStyle='#ff1744';skeletonCtx.fillStyle='#ff5252';const sx=p=>area.x+(1-p.x)*area.width,sy=p=>area.y+p.y*area.height;for(const[a,b]of POSE_CONNECTIONS){const p1=landmarks[a],p2=landmarks[b];if(!p1||!p2)continue;if(visibility(p1)<.45||visibility(p2)<.45)continue;skeletonCtx.beginPath();skeletonCtx.moveTo(sx(p1),sy(p1));skeletonCtx.lineTo(sx(p2),sy(p2));skeletonCtx.stroke()}for(const i of IMPORTANT_POINTS){const p=landmarks[i];if(!p||visibility(p)<.45)continue;skeletonCtx.beginPath();skeletonCtx.arc(sx(p),sy(p),6,0,Math.PI*2);skeletonCtx.fill()}}function clearSkeleton(){if(!skeletonCanvas||!skeletonCtx)return;skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height)}
+function resizeSkeletonCanvas(){const rect=video.getBoundingClientRect();skeletonCanvas.width=rect.width;skeletonCanvas.height=rect.height;skeletonCanvas.style.width=rect.width+'px';skeletonCanvas.style.height=rect.height+'px'}function getVideoDrawArea(){const w=skeletonCanvas.width,h=skeletonCanvas.height;if(!video.videoWidth||!video.videoHeight)return{x:0,y:0,width:w,height:h};const vr=video.videoWidth/video.videoHeight,cr=w/h;if(cr>vr){const dh=h,dw=h*vr;return{x:(w-dw)/2,y:0,width:dw,height:dh}}else{const dw=w,dh=w/vr;return{x:0,y:(h-dh)/2,width:dw,height:dh}}}
+
+function drawSkeleton(landmarks){
+  if(!skeletonEnabled){
+    clearSkeleton();
+    return;
+  }
+
+  resizeSkeletonCanvas();
+  skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height);
+
+  if(!landmarks||!landmarks.length)return;
+
+  const area=getVideoDrawArea();
+  skeletonCtx.lineWidth=4;
+  skeletonCtx.strokeStyle='#ff1744';
+  skeletonCtx.fillStyle='#ff5252';
+
+  const sx=p=>area.x+(1-p.x)*area.width;
+  const sy=p=>area.y+p.y*area.height;
+
+  // 一般骨架：維持原本門檻
+  for(const[a,b]of POSE_CONNECTIONS){
+    const p1=landmarks[a],p2=landmarks[b];
+    if(!p1||!p2)continue;
+
+    const isLegLine=[23,24,25,26,27,28,31,32].includes(a)||[23,24,25,26,27,28,31,32].includes(b);
+    const threshold=isLegLine?.25:.45;
+
+    if(visibility(p1)<threshold||visibility(p2)<threshold)continue;
+
+    skeletonCtx.beginPath();
+    skeletonCtx.moveTo(sx(p1),sy(p1));
+    skeletonCtx.lineTo(sx(p2),sy(p2));
+    skeletonCtx.stroke();
+  }
+
+  // 登山者備援線：膝蓋消失時，仍用髖部 -> 腳踝畫出腿部方向
+  if(localExerciseState&&localExerciseState.type==='mountain_climber'){
+    skeletonCtx.lineWidth=3;
+
+    for(const[a,b]of FALLBACK_LEG_CONNECTIONS){
+      const p1=landmarks[a],p2=landmarks[b];
+      if(!p1||!p2)continue;
+      if(visibility(p1)<.25||visibility(p2)<.20)continue;
+
+      skeletonCtx.beginPath();
+      skeletonCtx.moveTo(sx(p1),sy(p1));
+      skeletonCtx.lineTo(sx(p2),sy(p2));
+      skeletonCtx.stroke();
+    }
+
+    skeletonCtx.lineWidth=4;
+  }
+
+  // 關節點：腿部點降低門檻，避免側身時腳踝點消失
+  for(const i of IMPORTANT_POINTS){
+    const p=landmarks[i];
+    if(!p)continue;
+
+    const isLegPoint=[23,24,25,26,27,28,31,32].includes(i);
+    const threshold=isLegPoint?.25:.45;
+
+    if(visibility(p)<threshold)continue;
+
+    skeletonCtx.beginPath();
+    skeletonCtx.arc(sx(p),sy(p),6,0,Math.PI*2);
+    skeletonCtx.fill();
+  }
+}
+function clearSkeleton(){if(!skeletonCanvas||!skeletonCtx)return;skeletonCtx.clearRect(0,0,skeletonCanvas.width,skeletonCanvas.height)}
 function createLocalExerciseState(type,level,weight){return{is_started:true,type,level,weight,target:LOCAL_TARGETS[level][type],counter:0,total_calories:circuitTotalCalories,stage:null,hint:'偵測已開始，請進入鏡頭範圍。',last_tick:performance.now()}}function visibility(p){if(!p)return 0;if(typeof p.visibility==='number')return p.visibility;if(typeof p.presence==='number')return p.presence;return 1}function calculateAngle(a,b,c){const ab={x:a.x-b.x,y:a.y-b.y},cb={x:c.x-b.x,y:c.y-b.y};const dot=ab.x*cb.x+ab.y*cb.y,magAB=Math.hypot(ab.x,ab.y),magCB=Math.hypot(cb.x,cb.y);if(magAB===0||magCB===0)return 0;return Math.acos(Math.min(Math.max(dot/(magAB*magCB),-1),1))*180/Math.PI}function addCalories(type,mul,amount=null){const add=amount===null?LOCAL_CALORIES[type]*mul:amount;circuitTotalCalories+=add;localExerciseState.total_calories=circuitTotalCalories}function essentialVisible(points,threshold=.35){return points.every(p=>p&&visibility(p)>=threshold)}
-function analyzeLocalLandmarks(lm){const state=localExerciseState;if(!state)return null;const now=performance.now();state.last_tick=now;const type=state.type,weightMul=state.weight/65;const l_sh=lm[11],r_sh=lm[12],l_el=lm[13],r_el=lm[14],l_wr=lm[15],r_wr=lm[16],l_hip=lm[23],r_hip=lm[24],l_kn=lm[25],r_kn=lm[26],l_an=lm[27],r_an=lm[28];if(!essentialVisible([l_sh,r_sh,l_hip,r_hip],.3)){state.hint='請讓身體完整入鏡';return state}if(type==='jumping_jacks'){const armsUp=l_wr.y<l_sh.y&&r_wr.y<r_sh.y,legsSpread=Math.abs(l_an.x-r_an.x)>.15;if(armsUp&&legsSpread){if(state.stage==='down'){state.counter++;addCalories('jumping_jacks',weightMul);state.hint='漂亮！手腳打開到位，回到併攏後繼續下一下'}else state.hint='手舉過肩、雙腳打開標準；下一步請收回手腳';state.stage='up'}else if(!armsUp&&!legsSpread){state.stage='down';state.hint='準備動作完成：雙手放下、雙腳併攏，接著向外跳開'}else state.hint='開合跳要同時完成：雙手舉過肩，雙腳向外打開'}else if(type==='wall_sit'){const knee=calculateAngle(l_hip,l_kn,l_an),hip=calculateAngle(l_sh,l_hip,l_kn);if(knee>150&&hip>150){if(state.stage==='down'){state.counter++;addCalories('wall_sit',weightMul);state.hint='站起完成一次！下一次請慢慢坐到大腿接近水平'}else state.hint='請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度';state.stage='up'}else if(knee>70&&knee<110&&hip>70&&hip<110){state.stage='down';state.hint='蹲姿到位！保持膝蓋約 90 度，再站起完成一次'}else state.hint='調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高'}else if(type==='pushup'){const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,body=calculateAngle(l_sh,l_hip,l_an);const ok=Math.max(visibility(l_an),visibility(r_an))>.5&&body>140&&Math.abs(l_sh.y-l_hip.y)<.35;if(!ok)state.hint='請確保全身入鏡，並呈現趴下撐體姿勢';else if(avg>150){if(state.stage==='down'){state.counter++;addCalories('pushup',weightMul);state.hint='漂亮！手臂已撐直，完成一次伏地挺身'}else state.hint='身體保持一直線，接著彎曲手肘下壓';state.stage='up'}else if(avg<=90){state.stage='down';state.hint='下壓到位！核心收緊，現在推起來'}else state.hint='持續動作：下壓時手肘小於 90 度，撐起時手臂打直'}else if(type==='sit_up'){if(state.stage===null)state.stage='up';if(!essentialVisible([l_sh,r_sh,l_hip,r_hip,l_kn,r_kn],.3))state.hint='調整位置：確保全身入鏡（肩、腰、膝蓋）';else{const lying=Math.abs(l_hip.y-l_an.y)<.35&&Math.abs(r_hip.y-r_an.y)<.35;if(!lying)state.hint='請躺平！不要站著彎腰';else{const body=Math.min(calculateAngle(l_sh,l_hip,l_kn),calculateAngle(r_sh,r_hip,r_kn)),dist=Math.min(Math.hypot(l_el.x-l_kn.x,l_el.y-l_kn.y),Math.hypot(r_el.x-r_kn.x,r_el.y-r_kn.y));if(body<95&&dist<.22){if(state.stage==='down'){state.stage='up';state.hint='起身到位！現在慢慢躺回地面，躺下後才會計數'}else state.hint='已起身到位，請躺回地面完成這一下'}else if(body>120){if(state.stage==='up'){state.counter++;addCalories('sit_up',weightMul);state.hint='完成一次！下背貼地後，再準備下一次起身'}else state.hint='下背貼地，準備起身';state.stage='down'}else state.hint='繼續動作：起身靠近膝蓋後，再躺回地面才算一次'}}}else if(type==='mountain_climber'){if(!state.stage||typeof state.stage!=='object')state.stage={l:'down',r:'down'};const isPlank=Math.abs(l_sh.y-l_hip.y)<.35&&Math.abs(r_sh.y-r_hip.y)<.35;if(!isPlank)state.hint='請趴下呈現伏地挺身預備姿勢';else{const lang=calculateAngle(l_sh,l_hip,l_kn),rang=calculateAngle(r_sh,r_hip,r_kn);if(lang<100){if(state.stage.l==='down'){state.counter++;addCalories('mountain_climber',weightMul);state.hint='左腳漂亮！'}state.stage.l='up'}else if(lang>120)state.stage.l='down';if(rang<100){if(state.stage.r==='down'){state.counter++;addCalories('mountain_climber',weightMul);state.hint='右腳漂亮！'}state.stage.r='up'}else if(rang>120)state.stage.r='down';if(lang>120&&rang>120)state.hint='保持伏地挺身預備姿勢，左右膝輪流往胸口收';else if(lang>=100&&lang<=120&&rang>=100&&rang<=120)state.hint='膝蓋再往胸口靠近一點，角度不足還不會計數'}}else if(type==='squat'){const angle=calculateAngle(l_hip,l_kn,l_an);if(angle>160){if(state.stage==='down'){state.counter++;addCalories('squat',weightMul);state.hint='站直完成一次！下一次臀部往後坐、膝蓋穩定'}else state.hint='準備深蹲：雙腳站穩，臀部往後往下坐';state.stage='up'}else if(angle<90){state.stage='down';state.hint='深蹲深度到位！保持胸口打開，現在站起來'}else state.hint='再蹲低一點，膝蓋角度小於 90 度後再站起才會計數'}else if(type==='triceps_dip'){let torso=Math.max(Math.abs(l_sh.y-l_hip.y),Math.abs(r_sh.y-r_hip.y));if(torso<.1)torso=.2;const avg=((l_wr.y-l_sh.y)/torso+(r_wr.y-r_sh.y)/torso)/2;if(avg<.5){if(state.stage!=='down'){state.stage='down';state.hint='推起來！'}}else if(avg>.8){if(state.stage==='down'){state.counter++;addCalories('triceps_dip',weightMul);state.hint='漂亮！手臂撐直完成一次，接著慢慢下壓'}else state.hint='手掌撐穩椅緣，身體靠近椅子，準備往下沉';state.stage='up'}else state.hint='繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起'}else if(type==='high_knees'){const up=l_kn.y<l_hip.y+.05||r_kn.y<r_hip.y+.05;if(up){if(state.stage==='down'){state.counter++;addCalories('high_knees',weightMul);state.hint='做得好！膝蓋盡量抬高至腰部高度'}state.stage='up'}else{state.stage='down';state.hint='背部打直，核心收緊，左右腳快速交替高抬'}}else if(type==='lunge'){const la=calculateAngle(l_hip,l_kn,l_an),ra=calculateAngle(r_hip,r_kn,r_an);if(la<110&&ra<110){if(state.stage==='up'){state.counter++;addCalories('lunge',weightMul);state.hint='弓步深度到位，完成一次！推回站姿後換腳'}else state.hint='下蹲到位！前後腳膝蓋都彎曲，保持身體穩定';state.stage='down'}else if(la>150||ra>150){state.stage='up';state.hint='站姿準備完成：向前或向後跨一步，身體垂直下沉'}else state.hint='弓步再下沉一點，前後膝都接近彎曲後才會計數'}else if(type==='pushup_rotation'){const body=calculateAngle(l_sh,l_hip,l_kn);if(body<120)state.hint='請保持背部與腿部呈一直線';else{const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,rot=l_wr.y<l_sh.y-.15||r_wr.y<r_sh.y-.15;if(avg<=90){state.stage='down';state.hint='推起並轉身舉手！'}else if(state.stage==='down'&&rot&&(la>140||ra>140)){state.counter++;addCalories('pushup_rotation',weightMul);state.hint='完美轉身！換邊繼續';state.stage='up'}}}return state}
+function analyzeLocalLandmarks(lm){const state=localExerciseState;if(!state)return null;const now=performance.now();state.last_tick=now;const type=state.type,weightMul=state.weight/65;const l_sh=lm[11],r_sh=lm[12],l_el=lm[13],r_el=lm[14],l_wr=lm[15],r_wr=lm[16],l_hip=lm[23],r_hip=lm[24],l_kn=lm[25],r_kn=lm[26],l_an=lm[27],r_an=lm[28];if(!essentialVisible([l_sh,r_sh,l_hip,r_hip],.3)){state.hint='請讓身體完整入鏡';return state}if(type==='jumping_jacks'){const armsUp=l_wr.y<l_sh.y&&r_wr.y<r_sh.y,legsSpread=Math.abs(l_an.x-r_an.x)>.15;if(armsUp&&legsSpread){if(state.stage==='down'){state.counter++;addCalories('jumping_jacks',weightMul);state.hint='漂亮！手腳打開到位，回到併攏後繼續下一下'}else state.hint='手舉過肩、雙腳打開標準；下一步請收回手腳';state.stage='up'}else if(!armsUp&&!legsSpread){state.stage='down';state.hint='準備動作完成：雙手放下、雙腳併攏，接著向外跳開'}else state.hint='開合跳要同時完成：雙手舉過肩，雙腳向外打開'}else if(type==='wall_sit'){const knee=calculateAngle(l_hip,l_kn,l_an),hip=calculateAngle(l_sh,l_hip,l_kn);if(knee>150&&hip>150){if(state.stage==='down'){state.counter++;addCalories('wall_sit',weightMul);state.hint='站起完成一次！下一次請慢慢坐到大腿接近水平'}else state.hint='請背部靠穩牆面，慢慢下蹲到膝蓋約 90 度';state.stage='up'}else if(knee>70&&knee<110&&hip>70&&hip<110){state.stage='down';state.hint='蹲姿到位！保持膝蓋約 90 度，再站起完成一次'}else state.hint='調整姿勢：背靠牆、膝蓋彎曲到約 90 度，避免半蹲太高'}else if(type==='pushup'){const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,body=calculateAngle(l_sh,l_hip,l_an);const ok=Math.max(visibility(l_an),visibility(r_an))>.5&&body>140&&Math.abs(l_sh.y-l_hip.y)<.35;if(!ok)state.hint='請確保全身入鏡，並呈現趴下撐體姿勢';else if(avg>150){if(state.stage==='down'){state.counter++;addCalories('pushup',weightMul);state.hint='漂亮！手臂已撐直，完成一次伏地挺身'}else state.hint='身體保持一直線，接著彎曲手肘下壓';state.stage='up'}else if(avg<=90){state.stage='down';state.hint='下壓到位！核心收緊，現在推起來'}else state.hint='持續動作：下壓時手肘小於 90 度，撐起時手臂打直'}else if(type==='sit_up'){if(state.stage===null)state.stage='up';if(!essentialVisible([l_sh,r_sh,l_hip,r_hip,l_kn,r_kn],.3))state.hint='調整位置：確保全身入鏡（肩、腰、膝蓋）';else{const lying=Math.abs(l_hip.y-l_an.y)<.35&&Math.abs(r_hip.y-r_an.y)<.35;if(!lying)state.hint='請躺平！不要站著彎腰';else{const body=Math.min(calculateAngle(l_sh,l_hip,l_kn),calculateAngle(r_sh,r_hip,r_kn)),dist=Math.min(Math.hypot(l_el.x-l_kn.x,l_el.y-l_kn.y),Math.hypot(r_el.x-r_kn.x,r_el.y-r_kn.y));if(body<95&&dist<.22){if(state.stage==='down'){state.stage='up';state.hint='起身到位！現在慢慢躺回地面，躺下後才會計數'}else state.hint='已起身到位，請躺回地面完成這一下'}else if(body>120){if(state.stage==='up'){state.counter++;addCalories('sit_up',weightMul);state.hint='完成一次！下背貼地後，再準備下一次起身'}else state.hint='下背貼地，準備起身';state.stage='down'}else state.hint='繼續動作：起身靠近膝蓋後，再躺回地面才算一次'}}}
+
+else if(type==='mountain_climber'){
+  // 登山者改版：
+  // 不再依賴膝蓋角度，因為側身時膝蓋容易消失。
+  // 改用「腳踝是否靠近髖部 / 胸口」判斷收膝。
+  if(!state.stage||typeof state.stage!=='object'){
+    state.stage={l:'down',r:'down'};
+  }
+
+  const shoulderMid={
+    x:(l_sh.x+r_sh.x)/2,
+    y:(l_sh.y+r_sh.y)/2
+  };
+
+  const hipMid={
+    x:(l_hip.x+r_hip.x)/2,
+    y:(l_hip.y+r_hip.y)/2
+  };
+
+  // 軀幹長度作為比例尺，避免人離鏡頭遠近造成誤判
+  let torso=Math.hypot(shoulderMid.x-hipMid.x,shoulderMid.y-hipMid.y);
+  if(torso<.12)torso=.12;
+
+  // 伏地挺身預備姿勢：肩膀與髖部高度接近
+  const isPlank=Math.abs(l_sh.y-l_hip.y)<.35&&Math.abs(r_sh.y-r_hip.y)<.35;
+
+  // 登山者允許腳踝 visibility 更低，只要腳踝點還在就判斷
+  const lAnVisible=visibility(l_an)>.20;
+  const rAnVisible=visibility(r_an)>.20;
+
+  if(!isPlank){
+    state.hint='請趴下呈現伏地挺身預備姿勢';
+  }else if(!lAnVisible&&!rAnVisible){
+    state.hint='請讓腳踝入鏡，側身時也要看得到至少一側腳踝';
+  }else{
+    function ankleMetrics(ankle,hip){
+      const ankleToHip=Math.hypot(ankle.x-hip.x,ankle.y-hip.y)/torso;
+      const ankleToChest=Math.hypot(ankle.x-shoulderMid.x,ankle.y-shoulderMid.y)/torso;
+
+      // Y 軸向下為正：
+      // 收膝時腳踝通常會比髖部更靠近胸口，y 差會變小
+      const ankleForward=(ankle.y-hip.y)/torso;
+
+      return {
+        ankleToHip,
+        ankleToChest,
+        ankleForward
+      };
+    }
+
+    function isKneeTucked(m){
+      // 收膝條件：
+      // 1. 腳踝靠近同側髖部
+      // 2. 或腳踝靠近胸口中心
+      // 3. 並且腳踝不能明顯落在髖部很後方
+      return (
+        (m.ankleToHip<1.25||m.ankleToChest<1.75) &&
+        m.ankleForward<1.15
+      );
+    }
+
+    function isLegBack(m){
+      // 腳回到後方才重置 down，避免同一次收膝連續加分
+      return (
+        m.ankleToHip>1.45 &&
+        m.ankleToChest>1.95
+      );
+    }
+
+    const lmtr=lAnVisible?ankleMetrics(l_an,l_hip):null;
+    const rmtr=rAnVisible?ankleMetrics(r_an,r_hip):null;
+
+    if(lmtr&&isKneeTucked(lmtr)){
+      if(state.stage.l==='down'){
+        state.counter++;
+        addCalories('mountain_climber',weightMul);
+        state.hint='左腳漂亮！';
+      }
+      state.stage.l='up';
+    }else if(lmtr&&isLegBack(lmtr)){
+      state.stage.l='down';
+    }
+
+    if(rmtr&&isKneeTucked(rmtr)){
+      if(state.stage.r==='down'){
+        state.counter++;
+        addCalories('mountain_climber',weightMul);
+        state.hint='右腳漂亮！';
+      }
+      state.stage.r='up';
+    }else if(rmtr&&isLegBack(rmtr)){
+      state.stage.r='down';
+    }
+
+    if((!lmtr||isLegBack(lmtr))&&(!rmtr||isLegBack(rmtr))){
+      state.hint='保持伏地挺身預備姿勢，左右腳踝輪流往髖部或胸口靠近';
+    }else if(
+      (lmtr&&!isKneeTucked(lmtr)&&!isLegBack(lmtr))||
+      (rmtr&&!isKneeTucked(rmtr)&&!isLegBack(rmtr))
+    ){
+      state.hint='腳踝再往髖部或胸口靠近一點，收膝幅度不足還不會計數';
+    }
+  }
+}
+else if(type==='squat'){const angle=calculateAngle(l_hip,l_kn,l_an);if(angle>160){if(state.stage==='down'){state.counter++;addCalories('squat',weightMul);state.hint='站直完成一次！下一次臀部往後坐、膝蓋穩定'}else state.hint='準備深蹲：雙腳站穩，臀部往後往下坐';state.stage='up'}else if(angle<90){state.stage='down';state.hint='深蹲深度到位！保持胸口打開，現在站起來'}else state.hint='再蹲低一點，膝蓋角度小於 90 度後再站起才會計數'}else if(type==='triceps_dip'){let torso=Math.max(Math.abs(l_sh.y-l_hip.y),Math.abs(r_sh.y-r_hip.y));if(torso<.1)torso=.2;const avg=((l_wr.y-l_sh.y)/torso+(r_wr.y-r_sh.y)/torso)/2;if(avg<.5){if(state.stage!=='down'){state.stage='down';state.hint='推起來！'}}else if(avg>.8){if(state.stage==='down'){state.counter++;addCalories('triceps_dip',weightMul);state.hint='漂亮！手臂撐直完成一次，接著慢慢下壓'}else state.hint='手掌撐穩椅緣，身體靠近椅子，準備往下沉';state.stage='up'}else state.hint='繼續控制身體：下降到肩膀接近手腕，再用三頭肌推起'}else if(type==='high_knees'){const up=l_kn.y<l_hip.y+.05||r_kn.y<r_hip.y+.05;if(up){if(state.stage==='down'){state.counter++;addCalories('high_knees',weightMul);state.hint='做得好！膝蓋盡量抬高至腰部高度'}state.stage='up'}else{state.stage='down';state.hint='背部打直，核心收緊，左右腳快速交替高抬'}}else if(type==='lunge'){const la=calculateAngle(l_hip,l_kn,l_an),ra=calculateAngle(r_hip,r_kn,r_an);if(la<110&&ra<110){if(state.stage==='up'){state.counter++;addCalories('lunge',weightMul);state.hint='弓步深度到位，完成一次！推回站姿後換腳'}else state.hint='下蹲到位！前後腳膝蓋都彎曲，保持身體穩定';state.stage='down'}else if(la>150||ra>150){state.stage='up';state.hint='站姿準備完成：向前或向後跨一步，身體垂直下沉'}else state.hint='弓步再下沉一點，前後膝都接近彎曲後才會計數'}else if(type==='pushup_rotation'){const body=calculateAngle(l_sh,l_hip,l_kn);if(body<120)state.hint='請保持背部與腿部呈一直線';else{const la=calculateAngle(l_sh,l_el,l_wr),ra=calculateAngle(r_sh,r_el,r_wr),avg=(la+ra)/2,rot=l_wr.y<l_sh.y-.15||r_wr.y<r_sh.y-.15;if(avg<=90){state.stage='down';state.hint='推起並轉身舉手！'}else if(state.stage==='down'&&rot&&(la>140||ra>140)){state.counter++;addCalories('pushup_rotation',weightMul);state.hint='完美轉身！換邊繼續';state.stage='up'}}}return state}
 function updateDashboard(data){if(!data)return;document.getElementById('count').textContent=Math.floor(data.counter);document.getElementById('target').textContent=' / '+Math.floor(data.target);document.getElementById('progress_label').textContent='完成進度 (次數)';document.getElementById('total_calories').textContent=Number(data.total_calories||0).toFixed(2);const hint=data.hint||'';document.getElementById('hint').textContent=hint;speakText(getShortSpeechText(hint))}
 function nextExercise(isManualSkip=false){if(!isCircuitRunning)return;isTransitioning=true;stopFrameLoop();isReplaying=false;if(isManualSkip)skippedExercises++;currentIndex++;runExerciseStep()}function abortCircuit(){if(confirm('真的要放棄訓練嗎？\n(點擊確認將提早結束並結算目前成績)')){isCircuitRunning=false;wasAborted=true;stopFrameLoop();stopTeachingMonitor();isTransitioning=false;if(ytPlayer&&typeof ytPlayer.stopVideo==='function')ytPlayer.stopVideo();document.getElementById('yt_player_container').style.display='none';document.getElementById('skip_overlay').style.display='none';video.style.opacity='1';video.style.position='relative';video.style.zIndex='1';finishCircuit()}}function finishCircuit(){isCircuitRunning=false;stopFrameLoop();stopTeachingMonitor();document.getElementById('circuit_controls').style.display='none';document.getElementById('settings_bar').style.display='flex';document.getElementById('exercise_title').textContent='訓練結算中...';document.getElementById('hint').textContent='生成 AI 報告中...';document.getElementById('modal_overlay').style.display='block';document.getElementById('ai_modal').style.display='flex';const completed=Math.max(0,Math.min(exercises.length,currentIndex-skippedExercises));hiitFetch('/get_ai_feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({completed_exercises:completed,total_exercises:exercises.length,skipped_exercises:skippedExercises,was_aborted:wasAborted,total_calories:Number(document.getElementById('total_calories').textContent||0)})}).then(r=>r.json()).then(data=>{document.getElementById('ai_feedback_text').innerHTML=(data.feedback||'無法取得 AI 講評').replace(/\n/g,'<br>')}).catch(err=>{document.getElementById('ai_feedback_text').textContent='AI 講評產生失敗：'+err.message})}
 </script>
