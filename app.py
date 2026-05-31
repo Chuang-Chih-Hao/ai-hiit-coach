@@ -151,28 +151,28 @@ def get_user_state():
 
 
 def public_state(state, landmarks=None):
-    """只回傳前端需要的安全欄位。"""
-    data = {
-        'counter': float(state.get('counter', 0.0)),
-        'target': float(state.get('target', 0.0)),
-        'hint': state.get('hint', ''),
-        'total_calories': float(state.get('total_calories', 0.0)),
-        'is_started': bool(state.get('is_started', False)),
-        'type': state.get('type', ''),
-        'level': state.get('level', '')
-    }
+    """只回傳前端需要的安全欄位。"""  # 僅輸出給前端的安全狀態欄位
+    data = {  # 建立回傳用的字典
+        'counter': float(state.get('counter', 0.0)),  # 已完成次數，轉成浮點數
+        'target': float(state.get('target', 0.0)),  # 目標次數，轉成浮點數
+        'hint': state.get('hint', ''),  # 提示文字，預設空字串
+        'total_calories': float(state.get('total_calories', 0.0)),  # 累計卡路里，浮點數
+        'is_started': bool(state.get('is_started', False)),  # 是否開始，轉成布林值
+        'type': state.get('type', ''),  # 當前運動類型，字串
+        'level': state.get('level', '')  # 訓練強度等級，字串
+    }  # 結束 data 字典
 
-    if landmarks is not None:
-        data['landmarks'] = [
-            {
-                'x': float(lm.x),
-                'y': float(lm.y),
-                'visibility': float(lm.visibility)
-            }
-            for lm in landmarks
-        ]
+    if landmarks is not None:  # 若提供 landmarks，則包含於回傳資料中
+        data['landmarks'] = [  # 建立 landmarks 清單
+            {  # 每個 landmark 轉為較簡潔的 dict
+                'x': float(lm.x),  # X 座標，浮點數
+                'y': float(lm.y),  # Y 座標，浮點數
+                'visibility': float(lm.visibility)  # 可見度，浮點數
+            }  # 結束 single landmark dict
+            for lm in landmarks  # 迭代輸入的 landmarks
+        ]  # 結束 landmarks 清單
 
-    return data
+    return data  # 回傳處理後的資料
 
 
 def decode_base64_frame(data_url):
